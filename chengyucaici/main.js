@@ -192,7 +192,7 @@ function setupUI(state, idioms) {
     const text = input.value.trim();
     if (text.length !== 4) { toast('请输入四字成语'); return; }
     const found = idioms.find(x => x.text === text);
-    if (!found) { toast('不在词库中'); return; }
+    if (!found) { toast('检查是否属于成语'); return; }
     if (state.win) { toast('已通关'); return; }
 
     const guessPinyin = found.pinyin;

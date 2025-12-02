@@ -81,7 +81,7 @@ body::before {
 
 .footer { text-align: center; color: var(--muted); font-size: 12px; padding: 16px; background: linear-gradient(180deg, #f1f5f9 0%, #ffffff 100%); }
 
-.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: 24px; background: #111827; border: 1px solid #374151; color: var(--text); padding: 8px 12px; border-radius: 8px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: 24px; background: #f9fafb; border: 1px solid #cbd5e1; color: #0f172a; padding: 8px 12px; border-radius: 8px; box-shadow: 0 6px 18px rgba(2,6,23,0.08); }
 
 button[disabled] { opacity: 0.6; cursor: not-allowed; }
 

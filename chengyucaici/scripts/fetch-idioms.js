@@ -15,11 +15,33 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const SRC_URLS = [
+function parseArgs() {
+  const out = { extra: [], sourceFile: null, max: null };
+  const args = process.argv.slice(2);
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--extra') { const v = args[++i] || ''; out.extra = v.split(',').map(s => s.trim()).filter(Boolean); }
+    else if (a === '--source-file') { out.sourceFile = args[++i]; }
+    else if (a === '--max') { out.max = Number(args[++i]); }
+  }
+  return out;
+}
+
+const DEFAULT_SRC = [
   'https://raw.githubusercontent.com/pwxcoo/chinese-xinhua/master/data/idiom.json',
   'https://cdn.jsdelivr.net/gh/pwxcoo/chinese-xinhua@master/data/idiom.json',
-  'https://fastly.jsdelivr.net/gh/pwxcoo/chinese-xinhua@master/data/idiom.json'
+  'https://fastly.jsdelivr.net/gh/pwxcoo/chinese-xinhua@master/data/idiom.json',
+  'https://ghproxy.com/https://raw.githubusercontent.com/pwxcoo/chinese-xinhua/master/data/idiom.json'
 ];
+const OPT = parseArgs();
+let SRC_URLS = DEFAULT_SRC.slice();
+if (OPT.sourceFile) {
+  try {
+    const arr = JSON.parse(fs.readFileSync(OPT.sourceFile, 'utf8'));
+    if (Array.isArray(arr)) SRC_URLS = SRC_URLS.concat(arr.filter(x => typeof x === 'string'));
+  } catch {}
+}
+if (OPT.extra && OPT.extra.length) SRC_URLS = SRC_URLS.concat(OPT.extra);
 const OUT_FILE = path.join(__dirname, '..', 'data', 'idioms.full.json');
 
 const toneMap = {
@@ -54,7 +76,15 @@ function convertSyllableToNumberTone(syllable) {
 
 function fetchJSON(url) {
   return new Promise((resolve, reject) => {
-    https.get(url, res => {
+    const u = new URL(url);
+    const options = { hostname: u.hostname, path: u.pathname + (u.search || ''), protocol: u.protocol, headers: { 'user-agent': 'Mozilla/5.0', 'accept': 'application/json,text/plain,*/*' } };
+    const req = https.get(options, res => {
+      if (res.headers.location && res.statusCode >= 300 && res.statusCode < 400) {
+        const next = new URL(res.headers.location, url).toString();
+        res.resume();
+        fetchJSON(next).then(resolve).catch(reject);
+        return;
+      }
       if (res.statusCode !== 200) {
         reject(new Error('HTTP ' + res.statusCode));
         res.resume();
@@ -64,7 +94,9 @@ function fetchJSON(url) {
       res.setEncoding('utf8');
       res.on('data', chunk => data += chunk);
       res.on('end', () => resolve(data));
-    }).on('error', reject);
+    });
+    req.on('error', reject);
+    req.setTimeout(15000, () => { try { req.destroy(); } catch {} reject(new Error('timeout')); });
   });
 }
 
@@ -84,6 +116,7 @@ async function run() {
   if (arr.length === 0) console.warn('All sources failed, continue with local merge only');
 
   const outMap = new Map();
+  let processed = 0;
   for (const item of arr) {
     const text = (item.word || '').trim();
     const pin = (item.pinyin || '').trim();
@@ -94,6 +127,8 @@ async function run() {
     const converted = syllables.map(convertSyllableToNumberTone);
     if (converted.some(x => !x)) continue;
     outMap.set(text, converted);
+    processed++;
+    if (OPT.max && processed >= OPT.max) break;
   }
 
   function mergeLocal(file) {
