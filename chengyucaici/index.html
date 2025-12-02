@@ -48,6 +48,17 @@
       <small>每日一题模式使用本地存档，清空缓存可重来。</small>
     </footer>
 
+    <div id="winModal" class="modal" style="display:none">
+      <div class="modal-box">
+        <button id="winClose" class="modal-close">✖</button>
+        <div class="modal-title">恭喜答对！</div>
+        <div class="modal-body">
+          <div class="modal-row">答案：<span id="winAnswer"></span></div>
+          <div class="modal-row">释义：<span id="winExplain"></span></div>
+        </div>
+      </div>
+    </div>
+
     <script src="./main.js"></script>
   </body>
 </html>

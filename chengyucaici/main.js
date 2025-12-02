@@ -113,6 +113,10 @@ function setupUI(state, idioms) {
   const hintWrap = document.getElementById('hint');
   const overlay = document.getElementById('startOverlay');
   const startBtn = document.getElementById('startBtn');
+  const winModal = document.getElementById('winModal');
+  const winClose = document.getElementById('winClose');
+  const winAnswerEl = document.getElementById('winAnswer');
+  const winExplainEl = document.getElementById('winExplain');
 
   let isComposing = false;
   function enforceLimit() {
@@ -204,6 +208,9 @@ function setupUI(state, idioms) {
     store.set(state);
     input.value = '';
     render();
+    if (text === state.answer.text) {
+      showWinModal(state.answer.text);
+    }
   }
 
   function updateStartedUI() {
@@ -284,6 +291,37 @@ function setupUI(state, idioms) {
       store.set(state);
       render();
     });
+  }
+
+  function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  async function fetchExplain(word) {
+    try {
+      const resp1 = await fetch('./data/explain.json');
+      if (resp1 && resp1.ok) {
+        const map = await resp1.json();
+        if (map && typeof map === 'object' && map[word]) return String(map[word]);
+      }
+    } catch {}
+    try {
+      const resp = await fetch('./data/sujuku.sql');
+      if (!resp.ok) return null;
+      const sql = await resp.text();
+      const re = new RegExp("INSERT\\s+INTO\\s+`?cy`?\\s+VALUES\\s*\\([^)]*?,\\s*'" + escapeRegex(word) + "'\\s*,\\s*'[^']*'\\s*,\\s*'([^']*)'", 'i');
+      const m = re.exec(sql);
+      if (m) return m[1];
+      return null;
+    } catch { return null; }
+  }
+  async function showWinModal(word) {
+    if (!winModal) return;
+    winAnswerEl.textContent = word || '';
+    winExplainEl.textContent = '加载中…';
+    winModal.style.display = 'grid';
+    const exp = await fetchExplain(word);
+    winExplainEl.textContent = exp || '暂无释义';
+  }
+  if (winClose && winModal) {
+    winClose.addEventListener('click', () => { winModal.style.display = 'none'; });
   }
 }
 
