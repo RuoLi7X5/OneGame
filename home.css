@@ -1,0 +1,130 @@
+:root {
+  --text: #0b1020;
+  --muted: #6b7280;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  color: var(--text);
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, PingFang SC, Microsoft YaHei, sans-serif;
+  background: radial-gradient(1200px 800px at 10% 10%, rgba(59,130,246,0.25), transparent 60%),
+              radial-gradient(900px 900px at 90% 20%, rgba(16,185,129,0.25), transparent 60%),
+              radial-gradient(800px 600px at 30% 80%, rgba(244,114,182,0.25), transparent 60%),
+              linear-gradient(180deg, #0f172a 0%, #111827 100%);
+}
+.header, .main, .footer { position: relative; z-index: 1; }
+html::before {
+  content: "";
+  position: fixed;
+  inset: -20% -20% -20% -20%;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(50% 60% at 12% 18%, rgba(34,211,238,0.28) 0%, transparent 60%),
+              radial-gradient(40% 50% at 88% 22%, rgba(167,139,250,0.28) 0%, transparent 65%),
+              radial-gradient(60% 60% at 30% 82%, rgba(244,114,182,0.24) 0%, transparent 70%);
+  filter: blur(64px);
+  animation: auroraDrift 22s ease-in-out infinite;
+  will-change: transform;
+}
+html::after {
+  content: "";
+  position: fixed;
+  inset: -25% -25% -25% -25%;
+  pointer-events: none;
+  z-index: 0;
+  background: conic-gradient(from 140deg at 60% 40%, rgba(16,185,129,0.20), rgba(59,130,246,0.18), rgba(244,114,182,0.20), rgba(16,185,129,0.20));
+  opacity: 0.8;
+  filter: blur(80px);
+  animation: auroraFloat 28s linear infinite;
+  will-change: transform;
+}
+@keyframes auroraDrift {
+  0% { transform: translate3d(-2%, 0, 0) scale(1); }
+  50% { transform: translate3d(3%, -1%, 0) scale(1.04); }
+  100% { transform: translate3d(-2%, 0, 0) scale(1); }
+}
+@keyframes auroraFloat {
+  0% { transform: rotate(0deg) translate3d(0, 0, 0) scale(1); }
+  50% { transform: rotate(180deg) translate3d(1%, -1%, 0) scale(1.02); }
+  100% { transform: rotate(360deg) translate3d(0, 0, 0) scale(1); }
+}
+.header {
+  padding: 24px 16px;
+  text-align: center;
+}
+.header h1 {
+  margin: 0;
+  font-size: 32px;
+  line-height: 40px;
+  letter-spacing: 1px;
+  background: linear-gradient(90deg, #22d3ee, #a78bfa, #f472b6, #10b981);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.header .sub {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+.main { max-width: 960px; margin: 0 auto; padding: 24px 16px 40px; }
+.menu {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+.menu-item {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 16px;
+  padding: 18px;
+  color: #0f172a;
+  text-decoration: none;
+  backdrop-filter: blur(8px);
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.35);
+  box-shadow: 0 10px 30px rgba(2,6,23,0.35);
+  transform: translateZ(0);
+}
+.menu-item::before {
+  content: "";
+  position: absolute;
+  inset: -20% -30% -40% -30%;
+  background: conic-gradient(from 180deg at 50% 50%, rgba(34,211,238,0.45), rgba(167,139,250,0.45), rgba(244,114,182,0.45), rgba(16,185,129,0.45), rgba(34,211,238,0.45));
+  filter: blur(36px);
+  transform: rotate(8deg);
+  animation: swirl 14s linear infinite;
+  will-change: transform;
+}
+.menu-item::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 60%;
+  height: 200%;
+  background: linear-gradient(90deg, rgba(255,255,255,0.0) 0%, rgba(255,255,255,0.55) 45%, rgba(255,255,255,0.0) 100%);
+  transform: translateX(-120%) rotate(20deg);
+  filter: blur(14px);
+  opacity: 0.8;
+  animation: shineSlide 6s ease-in-out infinite;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+@keyframes swirl {
+  0% { transform: rotate(8deg) scale(1); }
+  50% { transform: rotate(188deg) scale(1.04); }
+  100% { transform: rotate(368deg) scale(1); }
+}
+.menu-item:hover { transform: translateY(-2px) scale(1.01); box-shadow: 0 18px 40px rgba(2,6,23,0.45); }
+.menu-title { position: relative; font-size: 20px; color: #ffffff; }
+.menu-sub { position: relative; margin-top: 6px; color: #e2e8f0; font-size: 12px; }
+.footer { text-align: center; color: #9ca3af; font-size: 12px; padding: 24px; }
+@keyframes shineSlide {
+  0% { transform: translateX(-120%) rotate(20deg); opacity: 0; }
+  20% { opacity: 1; }
+  50% { transform: translateX(120%) rotate(20deg); opacity: 0.85; }
+  100% { transform: translateX(180%) rotate(20deg); opacity: 0; }
+}

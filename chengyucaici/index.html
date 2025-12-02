@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>成语拼音猜测</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header class="header">
+      <h1>成语拼音猜测</h1>
+      <div class="sub">按位反馈：声母 / 韵母 / 声调</div>
+    </header>
+
+    <main class="main">
+      <div id="startOverlay" class="overlay" aria-hidden="false">
+        <div class="card">
+          <h2>成语拼音猜测</h2>
+          <p class="tip">按位反馈声母/韵母/声调，猜中四字成语</p>
+          <button id="startBtn" class="primary">开始游戏</button>
+        </div>
+      </div>
+      <section class="topbar">
+        <div class="mode">
+          <button id="resetBtn">重置</button>
+          <button id="randomBtn">练习随机题</button>
+          <button id="shareBtn">分享结果</button>
+        </div>
+        <div id="message" class="message"></div>
+      </section>
+
+      <section id="grid" class="grid" aria-label="猜测网格"></section>
+
+      <section id="hint" class="hint" aria-label="提示汇总"></section>
+
+      <section class="inputbar">
+        <button id="hintBtn" title="汇总当前已知条件">提示</button>
+        <input id="guessInput" placeholder="输入一个四字成语" />
+        <button id="submitBtn">提交</button>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <small>每日一题模式使用本地存档，清空缓存可重来。</small>
+    </footer>
+
+    <script src="./main.js"></script>
+  </body>
+</html>
