@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>舒尔特表格</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <a class="back-btn" href="../index.html" title="返回游戏列表">返回游戏列表</a>
+    <header class="header">
+      <h1>舒尔特表格</h1>
+      <div class="sub">从 1 到 N²，按序点击</div>
+    </header>
+    <main class="main" id="main">
+      <section class="controls">
+        <label class="control"><span>规格</span>
+          <select id="sizeSelect">
+            <option value="3">3×3</option>
+            <option value="4">4×4</option>
+            <option value="5" selected>5×5</option>
+            <option value="6">6×6</option>
+            <option value="7">7×7</option>
+            <option value="8">8×8</option>
+          </select>
+        </label>
+        <label class="control"><span>难度</span>
+          <select id="modeSelect">
+            <option value="simple" selected>简单模式</option>
+            <option value="regular">常规模式</option>
+          </select>
+        </label>
+        <label class="control"><span>特色玩法</span>
+          <select id="patternSelect">
+            <option value="normal" selected>普通</option>
+            <option value="odd">奇数</option>
+            <option value="even">偶数</option>
+          </select>
+        </label>
+        <button id="reverseBtn">倒序：关</button>
+        <button id="setDefault">设为默认</button>
+        <button id="startBtn" class="primary">开始</button>
+      </section>
+      <section class="hud">
+        <div class="hud-item">计时：<span id="timer">00:00.000</span></div>
+        <div class="hud-item">下一目标：<span id="nextTarget">-</span></div>
+        <div class="hud-item">上次：<span id="lastTime">--</span></div>
+        <div class="hud-item">最佳：<span id="bestTime">--</span></div>
+      </section>
+      <section class="scene">
+        <div class="prince">
+          <img id="princeImg" class="prince-img" src="./assets/prince.png" alt="小王子" />
+        </div>
+        <div class="fox">
+          <img id="foxImg" class="fox-img" src="./assets/fox.png" alt="小狐狸" />
+          <div class="fox-bubble" id="foxBubble"></div>
+        </div>
+      </section>
+      <img id="foxSceneImg" class="scene-banner" src="./assets/prince_fox.png" alt="小王子与狐狸" />
+      <section class="board-wrap">
+        <div id="board" class="board"></div>
+        <div id="motd" class="motd"></div>
+      </section>
+    </main>
+    <div id="resultModal" class="modal" style="display:none">
+      <div class="modal-box">
+        <button id="modalClose" class="modal-close">✖</button>
+        <div class="modal-title" id="modalTitle">结果</div>
+        <div class="modal-body">
+          <div class="modal-row">用时：<span id="modalTime"></span></div>
+          <div class="modal-row">规格 / 模式：<span id="modalMeta"></span></div>
+          <div class="modal-row" id="modalMistakesRow" style="display:none">失误次数：<span id="modalMistakes"></span></div>
+          <div class="modal-row quote" id="modalQuote"></div>
+        </div>
+        <div class="modal-actions">
+          <button id="playAgain" class="primary">再来一局</button>
+          <button id="returnBtn">返回</button>
+        </div>
+      </div>
+    </div>
+    <script src="main.js"></script>
+  </body>
+</html>
