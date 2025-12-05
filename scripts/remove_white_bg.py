@@ -1,48 +1,40 @@
+from PIL import Image
 import sys
-from PIL import Image, ImageFilter
+import os
 
-def clamp(v, lo, hi):
-    return lo if v < lo else hi if v > hi else v
+def remove_white_background(input_path, output_path, tolerance=30):
+    """
+    去除图片白色背景，转换为透明PNG
+    tolerance: 容差值，越大越能容忍接近白色的颜色
+    """
+    try:
+        img = Image.open(input_path)
+        img = img.convert("RGBA")
+        datas = img.getdata()
 
-def remove_bg(inp, outp):
-    img = Image.open(inp).convert('RGBA')
-    w, h = img.size
-    px = img.load()
-    mask = Image.new('L', (w, h), 0)
-    mp = mask.load()
-    for y in range(h):
-        for x in range(w):
-            r, g, b, a = px[x, y]
-            if a == 0:
-                mp[x, y] = 255
-                continue
-            rf = r / 255.0
-            gf = g / 255.0
-            bf = b / 255.0
-            v = max(rf, gf, bf)
-            m = min(rf, gf, bf)
-            s = 0.0 if v == 0.0 else (v - m) / v
-            vscore = clamp((v - 0.95) / 0.05, 0.0, 1.0)
-            sscore = clamp((0.10 - s) / 0.10, 0.0, 1.0)
-            wscore = vscore * sscore
-            mp[x, y] = int(255 * wscore)
-    mask = mask.filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.BoxBlur(1))
-    alpha = Image.new('L', (w, h), 255)
-    ap = alpha.load()
-    mp = mask.load()
-    for y in range(h):
-        for x in range(w):
-            ap[x, y] = 255 - mp[x, y]
-    out = img.copy()
-    out.putalpha(alpha)
-    out.save(outp, format='PNG')
+        newData = []
+        for item in datas:
+            # item 为 (R, G, B, A)
+            # 判断是否接近白色
+            if item[0] > 255 - tolerance and item[1] > 255 - tolerance and item[2] > 255 - tolerance:
+                newData.append((255, 255, 255, 0))  # 完全透明
+            else:
+                newData.append(item)
 
-def main():
-    if len(sys.argv) < 3:
-        print('usage: python scripts/remove_white_bg.py <input.png> <output.png>')
-        sys.exit(2)
-    remove_bg(sys.argv[1], sys.argv[2])
+        img.putdata(newData)
+        img.save(output_path, "PNG")
+        print(f"Successfully processed: {output_path}")
+        return True
+    except Exception as e:
+        print(f"Error processing image: {e}")
+        return False
 
-if __name__ == '__main__':
-    main()
-
+if __name__ == "__main__":
+    # 硬编码路径以适应当前任务
+    input_file = r"d:\Trae\OneGames\pictures\fengshu.jpg"
+    output_file = r"d:\Trae\OneGames\pictures\fengshu.png"
+    
+    if os.path.exists(input_file):
+        remove_white_background(input_file, output_file)
+    else:
+        print(f"Input file not found: {input_file}")
