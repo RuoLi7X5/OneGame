@@ -139,19 +139,26 @@ html::after {
   50% { transform: translate3d(1.5%, -0.5%, 0); opacity: 0.38; }
   100% { transform: translate3d(-1%, 0, 0); opacity: 0.33; }
 }
-.scene-decor { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+.scene-decor { position: fixed; inset: 0; pointer-events: none; z-index: 0; user-select: none; -webkit-user-select: none; }
 .corner-decor {
   position: fixed;
   top: 0;
   right: 0;
   width: 420px; /* 可根据实际效果调整大小 */
+  height: 420px; /* 必须设置高度 */
   max-width: 50vw; /* 移动端适配，避免过大 */
   opacity: 0.95; /* 提高不透明度，颜色更实 */
   z-index: 1; /* 确保在canvas之上，但在文字之下? 或者作为背景的一部分 */
   transform-origin: top right;
   pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
   filter: saturate(1.4) contrast(1.1); /* 增加饱和度和对比度，使红色更深更鲜艳 */
   mix-blend-mode: multiply; /* 尝试正片叠底让红色融入背景并显深，若太暗可去掉 */
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: top right;
 }
 .scene-decor svg { position: absolute; z-index: 1; }
 .scene-decor canvas { z-index: 0; }
