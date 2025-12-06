@@ -1,5 +1,8 @@
 const INITIALS = ['zh','ch','sh','b','p','m','f','d','t','n','l','g','k','h','j','q','x','r','z','c','s','y','w'];
 
+const FINALS = ['a','o','e','ai','ei','ao','ou','an','en','ang','eng','er','ia','ie','iao','iu','ian','in','iang','ing','iong','ua','uo','uai','ui','uan','un','uang','ong','u','ue','ü','üe','üan','ün'];
+const ALL_INITIALS = ['', ...INITIALS];
+
 function normalizeCore(core) {
   return core.replace('v','ü');
 }
@@ -26,20 +29,40 @@ function scoreGuess(answerChars, answerPinyin, guessChars, guessPinyin) {
   const a = answerPinyin.map(splitSyllable);
   const g = guessPinyin.map(splitSyllable);
   const res = Array(4).fill(0).map(() => ({
-    charStatus: 'absent', initialStatus: 'absent', finalStatus: 'absent', toneStatus: 'absent'
+    charStatus: 'absent', initialStatus: 'absent', finalStatus: 'absent', toneStatus: 'absent', comboStatus: false
   }));
 
   const aInit = a.map(x => x.initial), gInit = g.map(x => x.initial);
   const aFin  = a.map(x => x.final),   gFin  = g.map(x => x.final);
   const aTon  = a.map(x => String(x.tone)), gTon = g.map(x => String(x.tone));
 
+  // Combo logic: treat (initial + final) as a unit
+  // If user guesses (suo), and answer has (suo) at another position, mark comboStatus = true
+  // We track frequency of combos in answer
+  const aCombos = a.map(x => x.initial + ',' + x.final);
+  const gCombos = g.map(x => x.initial + ',' + x.final);
+  const comboLeft = tally(aCombos);
+
   const initLeft = tally(aInit), finLeft = tally(aFin), tonLeft = tally(aTon);
 
   for (let i = 0; i < 4; i++) {
     if (guessChars[i] === answerChars[i]) res[i].charStatus = 'correct';
-    if (gInit[i] === aInit[i]) { res[i].initialStatus = 'correct'; initLeft.set(gInit[i], (initLeft.get(gInit[i])||0) - 1); }
-    if (gFin[i]  === aFin[i])  { res[i].finalStatus   = 'correct';  finLeft.set(gFin[i],  (finLeft.get(gFin[i])||0)   - 1); }
-    if (gTon[i]  === aTon[i])  { res[i].toneStatus    = 'correct';  tonLeft.set(gTon[i],  (tonLeft.get(gTon[i])||0)   - 1); }
+    
+    // Check if exact match for parts
+    const isInitCorrect = (gInit[i] === aInit[i]);
+    const isFinCorrect  = (gFin[i]  === aFin[i]);
+    const isTonCorrect  = (gTon[i]  === aTon[i]);
+
+    if (isInitCorrect) { res[i].initialStatus = 'correct'; initLeft.set(gInit[i], (initLeft.get(gInit[i])||0) - 1); }
+    if (isFinCorrect)  { res[i].finalStatus   = 'correct';  finLeft.set(gFin[i],  (finLeft.get(gFin[i])||0)   - 1); }
+    if (isTonCorrect)  { res[i].toneStatus    = 'correct';  tonLeft.set(gTon[i],  (tonLeft.get(gTon[i])||0)   - 1); }
+    
+    // For combo, if both initial and final are correct at this position, consume it from comboLeft
+    // Note: strict matching for combo consumption based on position match
+    if (isInitCorrect && isFinCorrect) {
+      const c = gCombos[i];
+      comboLeft.set(c, (comboLeft.get(c)||0) - 1);
+    }
   }
 
   for (let i = 0; i < 4; i++) {
@@ -47,6 +70,20 @@ function scoreGuess(answerChars, answerPinyin, guessChars, guessPinyin) {
     if (res[i].initialStatus === 'absent' && (initLeft.get(gi) || 0) > 0) { res[i].initialStatus = 'present'; initLeft.set(gi, initLeft.get(gi)-1); }
     if (res[i].finalStatus   === 'absent' && (finLeft.get(gf)  || 0) > 0) { res[i].finalStatus   = 'present';  finLeft.set(gf,  finLeft.get(gf)-1);  }
     if (res[i].toneStatus    === 'absent' && (tonLeft.get(gt)  || 0) > 0) { res[i].toneStatus    = 'present';  tonLeft.set(gt,  tonLeft.get(gt)-1);  }
+    
+    // Check combo present
+    // Only if not fully correct at this position (meaning at least one part is not correct, or position is wrong)
+    // Actually, we only care if the combo (initial+final) is valid elsewhere
+    // If current position is already both correct, we don't mark comboStatus (it's just correct)
+    const isInitCorrect = (gInit[i] === aInit[i]);
+    const isFinCorrect  = (gFin[i]  === aFin[i]);
+    if (!(isInitCorrect && isFinCorrect)) {
+      const c = gCombos[i];
+      if ((comboLeft.get(c) || 0) > 0) {
+        res[i].comboStatus = true;
+        comboLeft.set(c, comboLeft.get(c) - 1);
+      }
+    }
   }
 
   return res;
@@ -95,10 +132,10 @@ function hashDateKey(dateStr) {
 }
 
 function pickDailyId(list) {
-  const today = new Date();
-  const key = today.toISOString().slice(0,10);
-  const idx = hashDateKey(key) % list.length;
-  return { idx, key };
+  // Daily logic removed, keep function or remove if unused. 
+  // But wait, we might not need this function anymore if we always do random.
+  // Let's just keep it simple and rely on random generation in start().
+  return { idx: 0, key: '' };
 }
 
 function setupUI(state, idioms) {
@@ -108,8 +145,14 @@ function setupUI(state, idioms) {
   const msg = document.getElementById('message');
   const resetBtn = document.getElementById('resetBtn');
   const randomBtn = document.getElementById('randomBtn');
-  const shareBtn = document.getElementById('shareBtn');
+  const playAgainBtn = document.getElementById('playAgainBtn');
+  // shareBtn removed
   const hintBtn = document.getElementById('hintBtn');
+  const queryBtn = document.getElementById('queryBtn');
+  const queryModal = document.getElementById('queryModal');
+  const queryClose = document.getElementById('queryClose');
+  const doQueryBtn = document.getElementById('doQueryBtn');
+  const queryResult = document.getElementById('queryResult');
   const hintWrap = document.getElementById('hint');
   const overlay = document.getElementById('startOverlay');
   const startBtn = document.getElementById('startBtn');
@@ -145,10 +188,18 @@ function setupUI(state, idioms) {
         cell.className = 'cell';
         const tags = document.createElement('div');
         tags.className = 'tags';
+        const pinyinGroup = document.createElement('div');
+        pinyinGroup.className = 'pinyin-group';
+
         const tInitial = document.createElement('span'); tInitial.className = 'tag';
         const tFinal   = document.createElement('span'); tFinal.className   = 'tag';
         const tTone    = document.createElement('span'); tTone.className    = 'tag';
-        tags.appendChild(tInitial); tags.appendChild(tFinal); tags.appendChild(tTone);
+        
+        pinyinGroup.appendChild(tInitial); 
+        pinyinGroup.appendChild(tFinal);
+        tags.appendChild(pinyinGroup); 
+        tags.appendChild(tTone);
+
         const ch = document.createElement('div'); ch.className = 'char'; ch.textContent = guess ? guess.text[c] : '';
         cell.appendChild(tags); cell.appendChild(ch);
         rowEl.appendChild(cell);
@@ -162,6 +213,9 @@ function setupUI(state, idioms) {
           tInitial.classList.add(s.initialStatus);
           tFinal.classList.add(s.finalStatus);
           tTone.classList.add(s.toneStatus);
+          if (s.comboStatus) {
+            pinyinGroup.classList.add('combo-match');
+          }
         }
       }
       grid.appendChild(rowEl);
@@ -218,9 +272,9 @@ function setupUI(state, idioms) {
     input.disabled = !state.started;
     submit.disabled = !state.started;
     resetBtn.disabled = !state.started;
-    randomBtn.disabled = !state.started;
-    shareBtn.disabled = !state.started;
+    // randomBtn and shareBtn removed or hidden
     if (hintBtn) hintBtn.disabled = !state.started;
+    if (queryBtn) queryBtn.disabled = !state.started;
   }
 
   startBtn.addEventListener('click', () => {
@@ -232,56 +286,147 @@ function setupUI(state, idioms) {
 
   submit.addEventListener('click', submitGuess);
   input.addEventListener('keydown', e => { if (e.key === 'Enter') submitGuess(); });
-  resetBtn.addEventListener('click', () => { store.clear(); location.reload(); });
-  randomBtn.addEventListener('click', () => {
+  function startNewGame() {
     const idx = Math.floor(Math.random() * idioms.length);
     const answer = idioms[idx];
-    const newState = { mode: 'practice', answer, guesses: [], win: false, started: false, hint: null };
+    const newState = { mode: 'practice', answer, guesses: [], win: false, started: true, hint: null };
     store.set(newState);
     location.reload();
-  });
-  shareBtn.addEventListener('click', () => {
-    const lines = state.guesses.map(g => g.score.map(s => {
-      const a = s.initialStatus === 'correct' ? '🟩' : s.initialStatus === 'present' ? '🟨' : '⬛';
-      const b = s.finalStatus   === 'correct' ? '🟩' : s.finalStatus   === 'present' ? '🟨' : '⬛';
-      const c = s.toneStatus    === 'correct' ? '🟩' : s.toneStatus    === 'present' ? '🟨' : '⬛';
-      return a+b+c;
-    }).join(' ')).join('\n');
-    const text = `成语拼音猜测 ${state.win ? '通关' : '未通关'}\n${lines}`;
-    const w = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(text) : Promise.reject();
-    w.then(() => toast('结果已复制到剪贴板')).catch(() => {
-      try {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.focus();
-        ta.select();
-        const ok = document.execCommand('copy');
-        document.body.removeChild(ta);
-        toast(ok ? '结果已复制到剪贴板' : '已生成结果，请手动复制');
-      } catch {
-        toast('已生成结果，请手动复制');
-      }
-    });
-  });
+  }
+
+  resetBtn.addEventListener('click', startNewGame);
+  if (playAgainBtn) playAgainBtn.addEventListener('click', startNewGame);
 
   render();
   updateStartedUI();
 
   function computeHintSnapshot() {
-    const snap = Array(4).fill(0).map(() => ({ initial: '?', final: '?', tone: '?' }));
-    for (let i = 0; i < state.guesses.length; i++) {
-      const g = state.guesses[i];
-      for (let c = 0; c < 4; c++) {
-        const s = g.score[c];
-        const p = g.parts[c];
-        if (s.initialStatus === 'correct') snap[c].initial = p.initial || '?';
-        if (s.finalStatus   === 'correct') snap[c].final   = p.final   || '?';
-        if (s.toneStatus    === 'correct') snap[c].tone    = p.tone    != null ? p.tone : '?';
+    const tones = ['1', '2', '3', '4'];
+    const possibilities = Array(4).fill(0).map(() => ({
+      initial: new Set(ALL_INITIALS),
+      final: new Set(FINALS),
+      tone: new Set(tones)
+    }));
+
+    const exactCounts = { initial: new Map(), final: new Map(), tone: new Map() };
+    const minCounts = { initial: new Map(), final: new Map(), tone: new Map() };
+
+    // Helper to process a dimension
+    const processDim = (dim, getValueStr) => {
+      for (const g of state.guesses) {
+        const values = [];
+        const statuses = [];
+        for (let i=0; i<4; i++) {
+          const val = getValueStr(g.parts[i]);
+          const status = g.score[i][dim + 'Status'];
+          values.push(val);
+          statuses.push(status);
+
+          // Local constraints
+          if (status === 'correct') {
+            possibilities[i][dim].clear();
+            possibilities[i][dim].add(val);
+          } else if (status === 'absent') {
+            // Only delete if absent. 
+            // Note: 'present' (yellow) means it is NOT at this position, so we can delete it too.
+            possibilities[i][dim].delete(val);
+          } else if (status === 'present') {
+            possibilities[i][dim].delete(val);
+          }
+        }
+
+        // Global constraints
+        const valMap = new Map();
+        for (let i=0; i<4; i++) {
+          const v = values[i];
+          if (!valMap.has(v)) valMap.set(v, { greens:[], yellows:[], grays:[] });
+          const entry = valMap.get(v);
+          if (statuses[i] === 'correct') entry.greens.push(i);
+          else if (statuses[i] === 'present') entry.yellows.push(i);
+          else entry.grays.push(i);
+        }
+
+        for (const [v, info] of valMap.entries()) {
+          const count = info.greens.length + info.yellows.length;
+          if (info.grays.length > 0) {
+            // Exact count known
+            exactCounts[dim].set(v, count);
+          } else {
+            // Min count known
+            const curr = minCounts[dim].get(v) || 0;
+            if (count > curr) minCounts[dim].set(v, count);
+          }
+        }
       }
+    };
+
+    processDim('initial', p => p.initial || '');
+    processDim('final', p => p.final);
+    processDim('tone', p => String(p.tone));
+
+    // Advanced deduction loop
+    let changed = true;
+    while(changed) {
+      changed = false;
+      
+      ['initial', 'final', 'tone'].forEach(dim => {
+        // Check exact counts
+        for (const [val, count] of exactCounts[dim].entries()) {
+          const possibleSlots = [];
+          for (let i=0; i<4; i++) {
+            if (possibilities[i][dim].has(val)) possibleSlots.push(i);
+          }
+          if (possibleSlots.length === count) {
+            for (const idx of possibleSlots) {
+              if (possibilities[idx][dim].size > 1) {
+                possibilities[idx][dim].clear();
+                possibilities[idx][dim].add(val);
+                changed = true;
+              }
+            }
+          }
+        }
+
+        // Check min counts (if possibleSlots == count, they must be val)
+        for (const [val, count] of minCounts[dim].entries()) {
+           const possibleSlots = [];
+           for (let i=0; i<4; i++) {
+             if (possibilities[i][dim].has(val)) possibleSlots.push(i);
+           }
+           if (possibleSlots.length === count) {
+             for (const idx of possibleSlots) {
+               if (possibilities[idx][dim].size > 1) {
+                 possibilities[idx][dim].clear();
+                 possibilities[idx][dim].add(val);
+                 changed = true;
+               }
+             }
+           }
+        }
+        
+        // Propagate fixed values (if exact count is known)
+        for (const [val, count] of exactCounts[dim].entries()) {
+          let fixedCount = 0;
+          for(let i=0; i<4; i++) if(possibilities[i][dim].size === 1 && possibilities[i][dim].has(val)) fixedCount++;
+          
+          if (fixedCount === count) {
+             // Remove val from all other slots
+             for(let i=0; i<4; i++) {
+               if (possibilities[i][dim].size > 1 && possibilities[i][dim].has(val)) {
+                 possibilities[i][dim].delete(val);
+                 changed = true;
+               }
+             }
+          }
+        }
+      });
     }
+
+    const snap = Array(4).fill(0).map((_, i) => ({
+      initial: possibilities[i].initial.size === 1 ? [...possibilities[i].initial][0] : '?',
+      final: possibilities[i].final.size === 1 ? [...possibilities[i].final][0] : '?',
+      tone: possibilities[i].tone.size === 1 ? [...possibilities[i].tone][0] : '?'
+    }));
     return snap;
   }
 
@@ -290,6 +435,70 @@ function setupUI(state, idioms) {
       state.hint = computeHintSnapshot();
       store.set(state);
       render();
+    });
+  }
+
+  if (queryBtn && queryModal) {
+    queryBtn.addEventListener('click', () => {
+      queryModal.style.display = 'grid';
+      // Pre-fill with hints if available
+      const snap = computeHintSnapshot();
+      const cols = queryModal.querySelectorAll('.query-col');
+      for(let i=0; i<4; i++) {
+        const inputs = cols[i].querySelectorAll('input');
+        // Reset first
+        inputs[0].value = ''; inputs[1].value = ''; inputs[2].value = '';
+        
+        if (snap[i].initial !== '?') inputs[0].value = snap[i].initial;
+        if (snap[i].final !== '?') inputs[1].value = snap[i].final;
+        if (snap[i].tone !== '?') inputs[2].value = snap[i].tone;
+      }
+      queryResult.innerHTML = '';
+    });
+    if (queryClose) queryClose.addEventListener('click', () => { queryModal.style.display = 'none'; });
+  }
+
+  if (doQueryBtn) {
+    doQueryBtn.addEventListener('click', () => {
+      const criteria = [];
+      const cols = queryModal.querySelectorAll('.query-col');
+      for (let i = 0; i < 4; i++) {
+        const inputs = cols[i].querySelectorAll('input');
+        criteria.push({
+          initial: inputs[0].value.trim().toLowerCase(),
+          final: inputs[1].value.trim().toLowerCase(),
+          tone: inputs[2].value.trim()
+        });
+      }
+
+      const matches = idioms.filter(item => {
+        if (!item.pinyin || item.pinyin.length !== 4) return false;
+        const parts = item.pinyin.map(splitSyllable);
+        for (let i = 0; i < 4; i++) {
+          const c = criteria[i];
+          const p = parts[i];
+          if (c.initial && c.initial !== p.initial) return false;
+          if (c.final && c.final !== p.final) return false;
+          if (c.tone && c.tone !== String(p.tone)) return false;
+        }
+        return true;
+      });
+
+      queryResult.innerHTML = '';
+      if (matches.length === 0) {
+        queryResult.textContent = '无匹配结果';
+        return;
+      }
+      matches.forEach(m => {
+        const el = document.createElement('div');
+        el.className = 'result-item';
+        el.innerHTML = `<div>${m.text}</div><div class="pinyin">${m.pinyin.join(' ')}</div>`;
+        el.addEventListener('click', () => {
+           input.value = m.text;
+           queryModal.style.display = 'none';
+        });
+        queryResult.appendChild(el);
+      });
     });
   }
 
@@ -337,9 +546,9 @@ async function start() {
   const idioms = await loadIdioms();
   let state = store.get();
   if (!state) {
-    const { idx } = pickDailyId(idioms);
+    const idx = Math.floor(Math.random() * idioms.length);
     const answer = idioms[idx];
-    state = { mode: 'daily', answer, guesses: [], win: false, started: false, hint: null };
+    state = { mode: 'practice', answer, guesses: [], win: false, started: false, hint: null };
     store.set(state);
   }
   if (state.started === undefined) { state.started = false; store.set(state); }

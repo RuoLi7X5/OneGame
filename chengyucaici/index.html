@@ -14,18 +14,16 @@
     </header>
 
     <main class="main">
-      <div id="startOverlay" class="overlay" aria-hidden="false">
-        <div class="card">
-          <h2>成语拼音猜测</h2>
-          <p class="tip">按位反馈声母/韵母/声调，猜中四字成语</p>
-          <button id="startBtn" class="primary">开始游戏</button>
-        </div>
+      <div id="startOverlay" class="overlay" style="display:none" aria-hidden="false">
+      <div class="card">
+        <h2>成语拼音猜测</h2>
+        <p class="tip">按位反馈声母/韵母/声调，猜中四字成语</p>
+        <button id="startBtn" class="primary">开始游戏</button>
       </div>
+    </div>
       <section class="topbar">
         <div class="mode">
-          <button id="resetBtn">重置</button>
-          <button id="randomBtn">练习随机题</button>
-          <button id="shareBtn">分享结果</button>
+          <button id="resetBtn">重新开始</button>
         </div>
         <div id="message" class="message"></div>
       </section>
@@ -40,13 +38,14 @@
 
       <section class="inputbar">
         <button id="hintBtn" title="汇总当前已知条件">提示</button>
+        <button id="queryBtn" title="高级查询">查询</button>
         <input id="guessInput" placeholder="输入一个四字成语" />
         <button id="submitBtn">提交</button>
       </section>
     </main>
 
     <footer class="footer">
-      <small>每日一题模式使用本地存档，清空缓存可重来。</small>
+      <small>成语猜词挑战</small>
     </footer>
 
     <div id="winModal" class="modal" style="display:none">
@@ -56,6 +55,49 @@
         <div class="modal-body">
           <div class="modal-row">答案：<span id="winAnswer"></span></div>
           <div class="modal-row">释义：<span id="winExplain"></span></div>
+          <div style="text-align: center; margin-top: 16px;">
+            <button id="playAgainBtn" class="primary">再来一局</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="queryModal" class="modal" style="display:none">
+      <div class="modal-box query-box">
+        <button id="queryClose" class="modal-close">✖</button>
+        <div class="modal-title">高级查询</div>
+        <div class="modal-body">
+          <div class="query-grid">
+            <!-- Will be populated by JS or static HTML -->
+            <div class="query-col">
+              <div class="col-label">字1</div>
+              <input class="q-input q-init" placeholder="声母" />
+              <input class="q-input q-final" placeholder="韵母" />
+              <input class="q-input q-tone" placeholder="声调" type="number" min="1" max="4" />
+            </div>
+            <div class="query-col">
+              <div class="col-label">字2</div>
+              <input class="q-input q-init" placeholder="声母" />
+              <input class="q-input q-final" placeholder="韵母" />
+              <input class="q-input q-tone" placeholder="声调" type="number" min="1" max="4" />
+            </div>
+            <div class="query-col">
+              <div class="col-label">字3</div>
+              <input class="q-input q-init" placeholder="声母" />
+              <input class="q-input q-final" placeholder="韵母" />
+              <input class="q-input q-tone" placeholder="声调" type="number" min="1" max="4" />
+            </div>
+            <div class="query-col">
+              <div class="col-label">字4</div>
+              <input class="q-input q-init" placeholder="声母" />
+              <input class="q-input q-final" placeholder="韵母" />
+              <input class="q-input q-tone" placeholder="声调" type="number" min="1" max="4" />
+            </div>
+          </div>
+          <div class="query-actions">
+            <button id="doQueryBtn" class="primary">开始查询</button>
+          </div>
+          <div id="queryResult" class="query-result"></div>
         </div>
       </div>
     </div>
