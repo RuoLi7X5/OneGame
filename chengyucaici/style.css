@@ -154,6 +154,7 @@ body {
 }
 .q-input:focus { border-color: #8b5a2b; outline: none; }
 .query-actions { text-align: center; margin-bottom: 16px; }
+.query-extra { margin-bottom: 16px; }
 .query-actions .primary { padding: 8px 32px; background: #8b5a2b; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; font-family: inherit; font-size: 15px; }
 .query-result { max-height: 240px; overflow-y: auto; border: 1px solid #d2b48c; border-radius: 4px; padding: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; background: rgba(255,255,255,0.4); }
 .result-item { padding: 8px; background: #fdf5e6; border: 1px solid #eaddcf; border-radius: 4px; text-align: center; font-size: 16px; color: #2f2f2f; cursor: pointer; font-family: 'KaiTi', serif; transition: 0.2s; }

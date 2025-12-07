@@ -471,9 +471,16 @@ function setupUI(state, idioms) {
         });
       }
 
+      // Parse extra includes
+      const qInclude = document.getElementById('qInclude');
+      const extraRaw = qInclude ? qInclude.value.trim() : '';
+      const extraIncludes = extraRaw ? extraRaw.split(/[\s,]+/).map(s => s.toLowerCase()) : [];
+
       const matches = idioms.filter(item => {
         if (!item.pinyin || item.pinyin.length !== 4) return false;
         const parts = item.pinyin.map(splitSyllable);
+        
+        // Check positional criteria
         for (let i = 0; i < 4; i++) {
           const c = criteria[i];
           const p = parts[i];
@@ -481,6 +488,27 @@ function setupUI(state, idioms) {
           if (c.final && c.final !== p.final) return false;
           if (c.tone && c.tone !== String(p.tone)) return false;
         }
+
+        // Check extra includes (must exist somewhere in the word)
+        // We create a pool of all components in this idiom
+        const pool = [];
+        parts.forEach(p => {
+          if (p.initial) pool.push(p.initial);
+          if (p.final) pool.push(p.final);
+          if (p.tone) pool.push(String(p.tone));
+        });
+        
+        // Every required extra element must appear in the pool at least once
+        // Note: simplistic check. If user types 'a a', it requires two 'a's? 
+        // Current logic: yes, if we remove matched items from pool.
+        // Let's implement "consumption" to support multiple same requirements.
+        const tempPool = [...pool];
+        for (const req of extraIncludes) {
+          const idx = tempPool.indexOf(req);
+          if (idx === -1) return false; // Requirement not found
+          tempPool.splice(idx, 1); // Consume it
+        }
+
         return true;
       });
 
