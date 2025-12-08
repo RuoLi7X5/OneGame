@@ -152,6 +152,7 @@ function setupUI(state, idioms) {
   const queryModal = document.getElementById('queryModal');
   const queryClose = document.getElementById('queryClose');
   const doQueryBtn = document.getElementById('doQueryBtn');
+  const clearQueryBtn = document.getElementById('clearQueryBtn');
   const queryResult = document.getElementById('queryResult');
   const hintWrap = document.getElementById('hint');
   const overlay = document.getElementById('startOverlay');
@@ -456,6 +457,14 @@ function setupUI(state, idioms) {
       queryResult.innerHTML = '';
     });
     if (queryClose) queryClose.addEventListener('click', () => { queryModal.style.display = 'none'; });
+    
+    if (clearQueryBtn) {
+      clearQueryBtn.addEventListener('click', () => {
+        const inputs = queryModal.querySelectorAll('input');
+        inputs.forEach(input => input.value = '');
+        queryResult.innerHTML = '';
+      });
+    }
   }
 
   if (doQueryBtn) {
