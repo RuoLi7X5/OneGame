@@ -154,6 +154,7 @@ function setupUI(state, idioms) {
   const doQueryBtn = document.getElementById('doQueryBtn');
   const clearQueryBtn = document.getElementById('clearQueryBtn');
   const queryResult = document.getElementById('queryResult');
+  const realtimeToggle = document.getElementById('qRealtime');
   const hintWrap = document.getElementById('hint');
   const overlay = document.getElementById('startOverlay');
   const startBtn = document.getElementById('startBtn');
@@ -300,6 +301,31 @@ function setupUI(state, idioms) {
 
   render();
   updateStartedUI();
+
+  function buildSearchIndex(list) {
+    const partsList = list.map(it => it.pinyin.map(splitSyllable));
+    const idxByInitial = new Map();
+    const idxByFinal = new Map();
+    const idxByTone = new Map();
+    const idxByCombo = new Map();
+    function add(map, key, i) {
+      if (!key) return;
+      let set = map.get(key);
+      if (!set) { set = new Set(); map.set(key, set); }
+      set.add(i);
+    }
+    for (let i = 0; i < partsList.length; i++) {
+      const parts = partsList[i];
+      for (const p of parts) {
+        add(idxByInitial, p.initial, i);
+        add(idxByFinal, p.final, i);
+        add(idxByTone, String(p.tone), i);
+        add(idxByCombo, p.initial + ',' + p.final, i);
+      }
+    }
+    return { partsList, idxByInitial, idxByFinal, idxByTone, idxByCombo };
+  }
+  const searchIndex = buildSearchIndex(idioms);
 
   function computeHintSnapshot() {
     const tones = ['1', '2', '3', '4'];
@@ -455,6 +481,7 @@ function setupUI(state, idioms) {
         if (snap[i].tone !== '?') inputs[2].value = snap[i].tone;
       }
       queryResult.innerHTML = '';
+      runQuery();
     });
     if (queryClose) queryClose.addEventListener('click', () => { queryModal.style.display = 'none'; });
     
@@ -467,10 +494,29 @@ function setupUI(state, idioms) {
     }
   }
 
-  if (doQueryBtn) {
-    doQueryBtn.addEventListener('click', () => {
-      const criteria = [];
+  function parseIncludeTokens(str) {
+    const raw = str ? str.split(/[\s,]+/).map(s => s.toLowerCase()).filter(Boolean) : [];
+    const out = [];
+    for (const tok of raw) {
+      if (/^[1-4]$/.test(tok)) { out.push({ type: 'tone', value: tok }); continue; }
+      let init = '';
+      for (const i of INITIALS) { if (tok.startsWith(i)) { init = i; break; } }
+      const rest = tok.slice(init.length);
+      if (init && FINALS.includes(rest)) { out.push({ type: 'combo', initial: init, final: rest }); continue; }
+      if (INITIALS.includes(tok)) { out.push({ type: 'initial', value: tok }); continue; }
+      if (FINALS.includes(tok)) { out.push({ type: 'final', value: tok }); continue; }
+      // 未识别的token忽略，不参与查询
+    }
+    return out;
+  }
+
+  function runQuery() {
+    if (!queryResult) return;
+    queryResult.textContent = '查询中…';
+    if (!Array.isArray(idioms) || idioms.length === 0) { queryResult.textContent = '数据未加载'; return; }
+    try {
       const cols = queryModal.querySelectorAll('.query-col');
+      const criteria = [];
       for (let i = 0; i < 4; i++) {
         const inputs = cols[i].querySelectorAll('input');
         criteria.push({
@@ -480,21 +526,37 @@ function setupUI(state, idioms) {
         });
       }
 
-      // Parse extra includes
       const qInclude = document.getElementById('qInclude');
-      const extraRaw = qInclude ? qInclude.value.trim() : '';
-      const extraIncludes = extraRaw ? extraRaw.split(/[\s,]+/).map(s => s.toLowerCase()) : [];
-
-      // Parse extra excludes
       const qExclude = document.getElementById('qExclude');
-      const excludeRaw = qExclude ? qExclude.value.trim() : '';
-      const extraExcludes = excludeRaw ? excludeRaw.split(/[\s,]+/).map(s => s.toLowerCase()) : [];
+      const includeStr = qInclude ? qInclude.value.trim() : '';
+      const excludeStr = qExclude ? qExclude.value.trim() : '';
+      const includeReqs = parseIncludeTokens(includeStr);
+      const excludeReqs = parseIncludeTokens(excludeStr);
 
-      const matches = idioms.filter(item => {
-        if (!item.pinyin || item.pinyin.length !== 4) return false;
-        const parts = item.pinyin.map(splitSyllable);
-        
-        // Check positional criteria
+      const allEmpty = criteria.every(c => !c.initial && !c.final && !c.tone) && !includeStr && !excludeStr;
+      if (allEmpty) { queryResult.innerHTML = ''; return; }
+
+      let candidate = new Set(Array.from({ length: idioms.length }, (_, i) => i));
+      function indicesForReq(req) {
+        if (req.type === 'initial') return searchIndex.idxByInitial.get(req.value) || new Set();
+        if (req.type === 'final') return searchIndex.idxByFinal.get(req.value) || new Set();
+        if (req.type === 'tone') return searchIndex.idxByTone.get(req.value) || new Set();
+        if (req.type === 'combo') return searchIndex.idxByCombo.get(req.initial + ',' + req.final) || new Set();
+        return new Set();
+      }
+      for (const req of includeReqs) {
+        const s = indicesForReq(req);
+        if (s.size === 0) { candidate.clear(); break; }
+        candidate = new Set([...candidate].filter(i => s.has(i)));
+      }
+      for (const req of excludeReqs) {
+        const s = indicesForReq(req);
+        if (s.size === 0) continue;
+        for (const i of s) candidate.delete(i);
+      }
+
+      const matches = Array.from(candidate).filter(idx => {
+        const parts = searchIndex.partsList[idx];
         for (let i = 0; i < 4; i++) {
           const c = criteria[i];
           const p = parts[i];
@@ -502,60 +564,105 @@ function setupUI(state, idioms) {
           if (c.final && c.final !== p.final) return false;
           if (c.tone && c.tone !== String(p.tone)) return false;
         }
-
-        // Check excludes
-        if (extraExcludes.length > 0) {
-          const allParts = new Set();
-          parts.forEach(p => {
-            if (p.initial) allParts.add(p.initial);
-            if (p.final) allParts.add(p.final);
-            if (p.tone) allParts.add(String(p.tone));
-          });
-          for (const ex of extraExcludes) {
-            if (allParts.has(ex)) return false;
+        if (excludeReqs.length > 0) {
+          const inits = parts.map(p => p.initial);
+          const finals = parts.map(p => p.final);
+          const tones = parts.map(p => String(p.tone));
+          const combos = parts.map(p => p.initial + ',' + p.final);
+          for (const ex of excludeReqs) {
+            if (ex.type === 'initial' && inits.includes(ex.value)) return false;
+            if (ex.type === 'final' && finals.includes(ex.value)) return false;
+            if (ex.type === 'tone' && tones.includes(ex.value)) return false;
+            if (ex.type === 'combo' && combos.includes(ex.initial + ',' + ex.final)) return false;
           }
         }
-
-        // Check extra includes (must exist somewhere in the word)
-        // We create a pool of all components in this idiom
-        const pool = [];
-        parts.forEach(p => {
-          if (p.initial) pool.push(p.initial);
-          if (p.final) pool.push(p.final);
-          if (p.tone) pool.push(String(p.tone));
-        });
-        
-        // Every required extra element must appear in the pool at least once
-        // Note: simplistic check. If user types 'a a', it requires two 'a's? 
-        // Current logic: yes, if we remove matched items from pool.
-        // Let's implement "consumption" to support multiple same requirements.
-        const tempPool = [...pool];
-        for (const req of extraIncludes) {
-          const idx = tempPool.indexOf(req);
-          if (idx === -1) return false; // Requirement not found
-          tempPool.splice(idx, 1); // Consume it
+        if (includeReqs.length > 0) {
+          const inits = parts.map(p => p.initial);
+          const finals = parts.map(p => p.final);
+          const tones = parts.map(p => String(p.tone));
+          const combos = parts.map(p => p.initial + ',' + p.final);
+          const initPool = [...inits];
+          const finalPool = [...finals];
+          const tonePool = [...tones];
+          const comboPool = [...combos];
+          for (const req of includeReqs) {
+            if (req.type === 'initial') { const idx = initPool.indexOf(req.value); if (idx === -1) return false; initPool.splice(idx, 1); }
+            else if (req.type === 'final') { const idx = finalPool.indexOf(req.value); if (idx === -1) return false; finalPool.splice(idx, 1); }
+            else if (req.type === 'tone') { const idx = tonePool.indexOf(req.value); if (idx === -1) return false; tonePool.splice(idx, 1); }
+            else if (req.type === 'combo') { const key = req.initial + ',' + req.final; const idx2 = comboPool.indexOf(key); if (idx2 === -1) return false; comboPool.splice(idx2, 1); }
+          }
         }
-
         return true;
       });
 
       queryResult.innerHTML = '';
-      if (matches.length === 0) {
-        queryResult.textContent = '无匹配结果';
-        return;
+      if (matches.length === 0) { queryResult.textContent = '无匹配结果'; return; }
+      const MAX_SHOW = 200;
+      const slice = matches.slice(0, MAX_SHOW);
+      if (matches.length > MAX_SHOW) {
+        const note = document.createElement('div');
+        note.className = 'result-note';
+        note.textContent = `匹配 ${matches.length} 条，显示前 ${MAX_SHOW} 条`;
+        queryResult.appendChild(note);
       }
-      matches.forEach(m => {
+      slice.forEach(idx => {
+        const m = idioms[idx];
         const el = document.createElement('div');
         el.className = 'result-item';
-        el.innerHTML = `<div>${m.text}</div><div class="pinyin">${m.pinyin.join(' ')}</div>`;
-        el.addEventListener('click', () => {
-           input.value = m.text;
-           queryModal.style.display = 'none';
-        });
+        el.innerHTML = `<div>${m.text}</div><div class=\"pinyin\">${m.pinyin.join(' ')}</div>`;
+        el.addEventListener('click', () => { input.value = m.text; queryModal.style.display = 'none'; });
         queryResult.appendChild(el);
       });
+    } catch (e) {
+      queryResult.textContent = '查询失败，请稍后重试';
+    }
+  }
+
+  if (doQueryBtn) {
+    doQueryBtn.addEventListener('click', () => { runQuery(); });
+  }
+
+  let lastQueryKey = '';
+  let queryDebounce = null;
+  let realtimeEnabled = !!(realtimeToggle && realtimeToggle.checked);
+  if (realtimeToggle) {
+    realtimeToggle.addEventListener('change', () => {
+      realtimeEnabled = realtimeToggle.checked;
+      if (realtimeEnabled) { runQuery(); }
     });
   }
+  function currentQueryKey() {
+    const cols = queryModal.querySelectorAll('.query-col');
+    const criteria = [];
+    for (let i = 0; i < 4; i++) {
+      const inputs = cols[i].querySelectorAll('input');
+      criteria.push({
+        initial: inputs[0].value.trim().toLowerCase(),
+        final: inputs[1].value.trim().toLowerCase(),
+        tone: inputs[2].value.trim()
+      });
+    }
+    const qInclude = document.getElementById('qInclude');
+    const qExclude = document.getElementById('qExclude');
+    const inc = (qInclude ? qInclude.value.trim().toLowerCase() : '');
+    const exc = (qExclude ? qExclude.value.trim().toLowerCase() : '');
+    const keyObj = { criteria, inc, exc };
+    return JSON.stringify(keyObj);
+  }
+  function scheduleQuery() {
+    const key = currentQueryKey();
+    if (!realtimeEnabled) return;
+    if (!key || key === lastQueryKey) return;
+    clearTimeout(queryDebounce);
+    queryDebounce = setTimeout(() => {
+      const cur = currentQueryKey();
+      if (cur !== lastQueryKey) {
+        lastQueryKey = cur;
+        runQuery();
+      }
+    }, 150);
+  }
+  queryModal.addEventListener('input', () => { scheduleQuery(); });
 
   function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
   async function fetchExplain(word) {
