@@ -485,6 +485,11 @@ function setupUI(state, idioms) {
       const extraRaw = qInclude ? qInclude.value.trim() : '';
       const extraIncludes = extraRaw ? extraRaw.split(/[\s,]+/).map(s => s.toLowerCase()) : [];
 
+      // Parse extra excludes
+      const qExclude = document.getElementById('qExclude');
+      const excludeRaw = qExclude ? qExclude.value.trim() : '';
+      const extraExcludes = excludeRaw ? excludeRaw.split(/[\s,]+/).map(s => s.toLowerCase()) : [];
+
       const matches = idioms.filter(item => {
         if (!item.pinyin || item.pinyin.length !== 4) return false;
         const parts = item.pinyin.map(splitSyllable);
@@ -496,6 +501,19 @@ function setupUI(state, idioms) {
           if (c.initial && c.initial !== p.initial) return false;
           if (c.final && c.final !== p.final) return false;
           if (c.tone && c.tone !== String(p.tone)) return false;
+        }
+
+        // Check excludes
+        if (extraExcludes.length > 0) {
+          const allParts = new Set();
+          parts.forEach(p => {
+            if (p.initial) allParts.add(p.initial);
+            if (p.final) allParts.add(p.final);
+            if (p.tone) allParts.add(String(p.tone));
+          });
+          for (const ex of extraExcludes) {
+            if (allParts.has(ex)) return false;
+          }
         }
 
         // Check extra includes (must exist somewhere in the word)
