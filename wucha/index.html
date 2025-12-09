@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>误差世界 v2.0 | Error World</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="start-screen">
+        <div class="intro-card">
+            <h1>误差世界 <span class="subtitle">v2.0</span></h1>
+            <p class="intro-text">
+                > 正在建立神经连接...<br>
+                > 检测到碳基生命体。<br>
+                > 欢迎来到 <b>Error World</b>。
+            </p>
+            
+            <div class="rules-box">
+                <h3>// 系统生存指南</h3>
+                <div class="guide-item">
+                    <span class="icon">👁️</span>
+                    <div class="text">
+                        <strong>不要完全相信你的眼睛</strong>
+                        <p>这里的每一个像素都可能撒谎。提示语 (Hint) 可能是救命稻草，也可能是陷阱。</p>
+                    </div>
+                </div>
+                <div class="guide-item">
+                    <span class="icon">⚖️</span>
+                    <div class="text">
+                        <strong>一切皆有代价</strong>
+                        <p>行动力(A)耗尽意味着死亡，信任(T)归零意味着被清除。保持平衡。</p>
+                    </div>
+                </div>
+                <div class="guide-item">
+                    <span class="icon">⏱️</span>
+                    <div class="text">
+                        <strong>观察者在注视</strong>
+                        <p>你的每一个犹豫、每一次冲动都在被记录。系统比你更了解你自己。</p>
+                    </div>
+                </div>
+                
+                <p class="small-hint">鼠标悬停在任何资源上可查看详细说明。</p>
+            </div>
+
+            <div class="input-group">
+                <input type="text" id="player-name-input" placeholder="输入代号以注册..." maxlength="12">
+            </div>
+
+            <button id="btn-start-game" class="action-btn primary large">初始化连接 (INIT)</button>
+        </div>
+    </div>
+
+    <div id="game-container" class="hidden">
+        <header>
+            <div class="header-left">
+                <h1>Error World <span class="subtitle">v2.0</span></h1>
+            </div>
+            <div class="turn-indicator">回合: <span id="turn-count">1 / 64</span></div>
+        </header>
+
+        <section id="resources">
+            <div class="resource-item tooltip" data-tooltip="信任 (Trust): 世界对你的容忍度。归零即被抹杀。">
+                <span class="label">T</span>
+                <span class="value" id="res-t">50</span>
+            </div>
+            <div class="resource-item tooltip" data-tooltip="信息 (Info): 解锁世界真相的关键货币。">
+                <span class="label">I</span>
+                <span class="value" id="res-i">0</span>
+            </div>
+            <div class="resource-item tooltip" data-tooltip="行动力 (Action): 你的生命能量。耗尽即死。">
+                <span class="label">A</span>
+                <span class="value" id="res-a">50</span>
+            </div>
+            <div class="resource-item tooltip" data-tooltip="稀有 (Rare): 极其珍贵的特殊数据，通往隐藏结局。">
+                <span class="label">R</span>
+                <span class="value" id="res-r">0</span>
+            </div>
+        </section>
+
+        <main id="main-display">
+            <div id="event-card" class="card">
+                <div class="card-header">
+                    <h2 id="event-title">初始化...</h2>
+                    <div id="event-type" class="tag">SYSTEM</div>
+                </div>
+                <p id="event-description">正在加载世界数据...</p>
+                
+                <div class="hint-box">
+                    <span class="hint-label">> 提示:</span>
+                    <span id="event-hint">...</span>
+                </div>
+            </div>
+
+            <div id="log-panel" class="card">
+                <h3>> 终端日志</h3>
+                <div id="log-content"></div>
+            </div>
+        </main>
+
+        <section id="actions">
+            <button id="btn-engage" class="action-btn primary tooltip" data-tooltip="承担风险，尝试获取收益。">
+                尝试 (Engage)
+            </button>
+            <button id="btn-avoid" class="action-btn secondary tooltip" data-tooltip="规避当前风险，但可能错失机会。">
+                放弃 (Avoid)
+            </button>
+        </section>
+        
+        <!-- Modal for Endings and Review -->
+        <div id="modal-overlay" class="hidden">
+            <div id="modal-content">
+                <button id="btn-close-ending" class="icon-btn close-modal" style="display: block;">×</button>
+                <h2 id="modal-title">结局</h2>
+                <div id="ending-content"></div>
+                <div class="modal-actions">
+                    <button id="btn-review" class="action-btn secondary hidden">回顾旅程</button>
+                    <button id="btn-restart" class="action-btn primary">重启系统</button>
+                </div>
+            </div>
+            
+            <div id="review-modal" class="hidden">
+                <div class="review-header">
+                    <h2>> 记忆回放</h2>
+                    <button id="btn-close-review" class="icon-btn">×</button>
+                </div>
+                <div id="review-content"></div>
+            </div>
+        </div>
+    </div>
+    <script src="events.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
