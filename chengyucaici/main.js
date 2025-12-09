@@ -519,11 +519,23 @@ function setupUI(state, idioms) {
       const criteria = [];
       for (let i = 0; i < 4; i++) {
         const inputs = cols[i].querySelectorAll('input');
-        criteria.push({
-          initial: inputs[0].value.trim().toLowerCase(),
-          final: inputs[1].value.trim().toLowerCase(),
-          tone: inputs[2].value.trim()
-        });
+        const rawInit = inputs[0].value.trim().toLowerCase();
+        const rawFinal = inputs[1].value.trim().toLowerCase();
+        const rawTone = inputs[2].value.trim();
+        const c = {};
+        if (rawInit) {
+          if (rawInit.startsWith('!')) c.notInitial = rawInit.slice(1);
+          else c.initial = rawInit;
+        }
+        if (rawFinal) {
+          if (rawFinal.startsWith('!')) c.notFinal = rawFinal.slice(1);
+          else c.final = rawFinal;
+        }
+        if (rawTone) {
+          if (rawTone.startsWith('!')) c.notTone = rawTone.slice(1);
+          else c.tone = rawTone;
+        }
+        criteria.push(c);
       }
 
       const qInclude = document.getElementById('qInclude');
@@ -563,6 +575,9 @@ function setupUI(state, idioms) {
           if (c.initial && c.initial !== p.initial) return false;
           if (c.final && c.final !== p.final) return false;
           if (c.tone && c.tone !== String(p.tone)) return false;
+          if (c.notInitial && c.notInitial === p.initial) return false;
+          if (c.notFinal && c.notFinal === p.final) return false;
+          if (c.notTone && c.notTone === String(p.tone)) return false;
         }
         if (excludeReqs.length > 0) {
           const inits = parts.map(p => p.initial);
@@ -577,19 +592,53 @@ function setupUI(state, idioms) {
           }
         }
         if (includeReqs.length > 0) {
-          const inits = parts.map(p => p.initial);
-          const finals = parts.map(p => p.final);
-          const tones = parts.map(p => String(p.tone));
-          const combos = parts.map(p => p.initial + ',' + p.final);
-          const initPool = [...inits];
-          const finalPool = [...finals];
-          const tonePool = [...tones];
-          const comboPool = [...combos];
+          const usedInitPos = new Set();
+          const usedFinalPos = new Set();
+          const usedTonePos = new Set();
+          const usedComboPos = new Set();
+          function canUsePosForReq(req, pos) {
+            const c = criteria[pos];
+            const p = parts[pos];
+            if (req.type === 'initial') {
+              if (c && c.notInitial && c.notInitial === req.value) return false;
+              if (c && c.initial && c.initial === req.value) return false; // 额外出现需避开已固定
+              return p.initial === req.value;
+            }
+            if (req.type === 'final') {
+              if (c && c.notFinal && c.notFinal === req.value) return false;
+              if (c && c.final && c.final === req.value) return false;
+              return p.final === req.value;
+            }
+            if (req.type === 'tone') {
+              const vt = String(req.value);
+              if (c && c.notTone && c.notTone === vt) return false;
+              if (c && c.tone && c.tone === vt) return false;
+              return String(p.tone) === vt;
+            }
+            if (req.type === 'combo') {
+              if (c && ((c.notInitial && c.notInitial === req.initial) || (c.notFinal && c.notFinal === req.final))) return false;
+              if (c && (c.initial === req.initial) && (c.final === req.final)) return false;
+              return p.initial === req.initial && p.final === req.final;
+            }
+            return false;
+          }
           for (const req of includeReqs) {
-            if (req.type === 'initial') { const idx = initPool.indexOf(req.value); if (idx === -1) return false; initPool.splice(idx, 1); }
-            else if (req.type === 'final') { const idx = finalPool.indexOf(req.value); if (idx === -1) return false; finalPool.splice(idx, 1); }
-            else if (req.type === 'tone') { const idx = tonePool.indexOf(req.value); if (idx === -1) return false; tonePool.splice(idx, 1); }
-            else if (req.type === 'combo') { const key = req.initial + ',' + req.final; const idx2 = comboPool.indexOf(key); if (idx2 === -1) return false; comboPool.splice(idx2, 1); }
+            let matched = false;
+            for (let pos = 0; pos < 4; pos++) {
+              if (req.type === 'initial' && usedInitPos.has(pos)) continue;
+              if (req.type === 'final' && usedFinalPos.has(pos)) continue;
+              if (req.type === 'tone' && usedTonePos.has(pos)) continue;
+              if (req.type === 'combo' && usedComboPos.has(pos)) continue;
+              if (canUsePosForReq(req, pos)) {
+                matched = true;
+                if (req.type === 'initial') usedInitPos.add(pos);
+                else if (req.type === 'final') usedFinalPos.add(pos);
+                else if (req.type === 'tone') usedTonePos.add(pos);
+                else if (req.type === 'combo') usedComboPos.add(pos);
+                break;
+              }
+            }
+            if (!matched) return false;
           }
         }
         return true;
