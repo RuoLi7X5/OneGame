@@ -5,6 +5,7 @@ let spawnFinished = false;
 let gameOver = false;
 let t = 0;
 let particles = [];
+const BASE = { W: 980, H: 700 };
 
 function initGame(lv) {
   level = JSON.parse(JSON.stringify(lv));
@@ -82,6 +83,7 @@ function setupCanvas() {
   resize();
   window.addEventListener("resize", resize);
   canvas.addEventListener("click", onClick);
+  canvas.addEventListener("touchstart", onClick, { passive: true });
   requestAnimationFrame(loop);
 }
 
@@ -153,28 +155,30 @@ function draw() {
 function drawTracks() {
   for (let k in edges) {
     const e = edges[k];
-    const a = nodes[e.from].pos, b = nodes[e.to].pos;
+    const a = scalePos(nodes[e.from].pos), b = scalePos(nodes[e.to].pos);
     const dx = b[0]-a[0], dy = b[1]-a[1];
     const L = Math.hypot(dx,dy) || 1;
     const nx = -dy/L, ny = dx/L;
     ctx.lineCap = "round";
     const base = getVar('--rail-base');
     const slp = getVar('--rail-sleeper');
-    ctx.lineWidth = 6; ctx.strokeStyle = base; line(a[0]+nx*4,a[1]+ny*4,b[0]+nx*4,b[1]+ny*4);
-    ctx.lineWidth = 6; ctx.strokeStyle = base; line(a[0]-nx*4,a[1]-ny*4,b[0]-nx*4,b[1]-ny*4);
-    const sleepers = Math.max(4, Math.floor(L/40));
-    ctx.lineWidth = 3; ctx.strokeStyle = slp;
+    const r = scaleR(1);
+    ctx.lineWidth = 6*r; ctx.strokeStyle = base; line(a[0]+nx*4*r,a[1]+ny*4*r,b[0]+nx*4*r,b[1]+ny*4*r);
+    ctx.lineWidth = 6*r; ctx.strokeStyle = base; line(a[0]-nx*4*r,a[1]-ny*4*r,b[0]-nx*4*r,b[1]-ny*4*r);
+    const sleepers = Math.max(4, Math.floor(L/(40*r)));
+    ctx.lineWidth = 3*r; ctx.strokeStyle = slp;
     for (let i=1;i<sleepers;i++) {
       const ti = i/sleepers; const x = a[0] + dx*ti; const y = a[1] + dy*ti;
-      line(x-nx*8,y-ny*8,x+nx*8,y+ny*8);
+      line(x-nx*8*r,y-ny*8*r,x+nx*8*r,y+ny*8*r);
     }
   }
   for (let id in switches) {
     const sw = switches[id];
-    const from = nodes[id].pos; const to = nodes[sw.options[sw.selectedIndex]].pos;
+    const from = scalePos(nodes[id].pos); const to = scalePos(nodes[sw.options[sw.selectedIndex]].pos);
     const accent = getVar('--accent-path');
-    ctx.lineWidth = 5; ctx.strokeStyle = accent; line(from[0],from[1],to[0],to[1]);
-    drawGear(from[0],from[1],26,10);
+    const r = scaleR(1);
+    ctx.lineWidth = 5*r; ctx.strokeStyle = accent; line(from[0],from[1],to[0],to[1]);
+    drawGear(from[0],from[1],26*r,10);
   }
 }
 
@@ -182,16 +186,17 @@ function drawWarehouses() {
   for (let id in nodes) {
     const n = nodes[id]; if (n.type !== "warehouse") continue;
     const c = level.colorMap[n.color] || "#888";
-    const [x,y] = n.pos;
-    ctx.lineWidth = 2; ctx.strokeStyle = "#0f241f";
-    ctx.fillStyle = "#17352c"; ctx.beginPath(); ctx.rect(x-34,y-30,68,60); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = c; ctx.beginPath(); ctx.rect(x-22,y-10,44,34); ctx.fill();
-    ctx.fillStyle = "#e6f0ea"; ctx.beginPath(); ctx.rect(x-34,y-30,68,10); ctx.fill();
+    const [x,y] = scalePos(n.pos);
+    const r = scaleR(1);
+    ctx.lineWidth = 2*r; ctx.strokeStyle = "#0f241f";
+    ctx.fillStyle = "#17352c"; ctx.beginPath(); ctx.rect(x-34*r,y-30*r,68*r,60*r); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = c; ctx.beginPath(); ctx.rect(x-22*r,y-10*r,44*r,34*r); ctx.fill();
+    ctx.fillStyle = "#e6f0ea"; ctx.beginPath(); ctx.rect(x-34*r,y-30*r,68*r,10*r); ctx.fill();
     if (n.pulse && n.pulse > 0) {
       ctx.save();
       ctx.globalAlpha = n.pulse*0.7;
       ctx.fillStyle = c;
-      ctx.beginPath(); ctx.rect(x-26,y-14,52,42); ctx.fill();
+      ctx.beginPath(); ctx.rect(x-26*r,y-14*r,52*r,42*r); ctx.fill();
       ctx.restore();
     }
   }
@@ -200,9 +205,10 @@ function drawWarehouses() {
 function drawSwitches() {
   for (let id in switches) {
     const sw = switches[id]; const p = nodes[id].pos;
-    ctx.fillStyle = "rgba(255,255,255,0.25)"; ctx.beginPath(); ctx.arc(p[0],p[1],28,0,Math.PI*2); ctx.fill();
-    const sel = sw.options[sw.selectedIndex]; const dest = nodes[sel].pos;
-    ctx.strokeStyle = getVar('--accent-path'); ctx.lineWidth = 3; line(p[0],p[1],dest[0],dest[1]);
+    const sp = scalePos(p); const r = scaleR(28);
+    ctx.fillStyle = "rgba(255,255,255,0.25)"; ctx.beginPath(); ctx.arc(sp[0],sp[1],r,0,Math.PI*2); ctx.fill();
+    const sel = sw.options[sw.selectedIndex]; const dest = scalePos(nodes[sel].pos);
+    ctx.strokeStyle = getVar('--accent-path'); ctx.lineWidth = 3*scaleR(1); line(sp[0],sp[1],dest[0],dest[1]);
   }
 }
 
@@ -210,9 +216,11 @@ function drawBoxes() {
   if (!boxes) return;
   for (let b of boxes) {
     const e = getEdge(b.from,b.to); const a = nodes[e.from].pos, c = nodes[e.to].pos;
-    const x = a[0] + (c[0]-a[0]) * b.t; const y = a[1] + (c[1]-a[1]) * b.t;
+    const xRaw = a[0] + (c[0]-a[0]) * b.t; const yRaw = a[1] + (c[1]-a[1]) * b.t;
+    const [x,y] = scalePos([xRaw,yRaw]);
     const col = level.colorMap[b.color] || "#ddd";
-    ctx.fillStyle = col; ctx.beginPath(); ctx.rect(x-8,y-8,16,16); ctx.fill();
+    const r = scaleR(1);
+    ctx.fillStyle = col; ctx.beginPath(); ctx.rect(x-8*r,y-8*r,16*r,16*r); ctx.fill();
   }
 }
 
@@ -246,27 +254,31 @@ function drawGear(cx, cy, r, teeth) {
   ctx.translate(cx, cy);
   ctx.rotate(rot);
   ctx.strokeStyle = getVar('--gear-stroke');
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 3*scaleR(1);
   ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.stroke();
   for (let i=0;i<teeth;i++) {
     const a = i*(Math.PI*2/teeth);
-    const x1 = Math.cos(a)*(r-6), y1 = Math.sin(a)*(r-6);
-    const x2 = Math.cos(a)*(r+2), y2 = Math.sin(a)*(r+2);
+    const x1 = Math.cos(a)*(r-6*scaleR(1)), y1 = Math.sin(a)*(r-6*scaleR(1));
+    const x2 = Math.cos(a)*(r+2*scaleR(1)), y2 = Math.sin(a)*(r+2*scaleR(1));
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
   }
-  ctx.fillStyle = "#1a4034"; ctx.beginPath(); ctx.arc(0,0,8,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#1a4034"; ctx.beginPath(); ctx.arc(0,0,8*scaleR(1),0,Math.PI*2); ctx.fill();
   ctx.restore();
 }
 
 function getVar(name) { return getComputedStyle(document.body).getPropertyValue(name).trim() || '#3c7c66'; }
 
+function scalePos(p) { return [ p[0] * (W/BASE.W), p[1] * (H/BASE.H) ]; }
+function scaleR(r) { return r * Math.min(W/BASE.W, H/BASE.H); }
+
 function line(x1,y1,x2,y2) { ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }
 
 function onClick(ev) {
-  const r = canvas.getBoundingClientRect(); const mx = ev.clientX - r.left; const my = ev.clientY - r.top;
+  const r = canvas.getBoundingClientRect(); const mx = (ev.clientX ?? ev.touches[0].clientX) - r.left; const my = (ev.clientY ?? ev.touches[0].clientY) - r.top;
   for (let id in switches) {
-    const p = nodes[id].pos; const dx = mx-p[0], dy = my-p[1];
-    if (dx*dx+dy*dy <= 28*28) {
+    const p = scalePos(nodes[id].pos); const radius = scaleR(28);
+    const dx = mx-p[0], dy = my-p[1];
+    if (dx*dx+dy*dy <= radius*radius) {
       const sw = switches[id]; sw.selectedIndex = (sw.selectedIndex + 1) % sw.options.length; return;
     }
   }
