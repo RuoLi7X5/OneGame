@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分色调度</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="topbar">
+        <div class="title">分色调度 <span id="levelName"></span></div>
+        <div class="hud" style="gap:8px">
+            <select id="themeSelect" class="btn" style="padding:6px 10px">
+                <option value="">森林深绿</option>
+                <option value="theme-navy">海军蓝</option>
+                <option value="theme-metro">都市夜</option>
+                <option value="theme-light">明亮浅色</option>
+            </select>
+        </div>
+        <div class="hud hidden" id="hudPanel">
+            <div class="metric">正确 <span id="mCorrect">0</span></div>
+            <div class="metric">错误 <span id="mErrors">0</span></div>
+            <div class="metric">剩余 <span id="mRemaining">0</span></div>
+            <button id="btnRestart" class="btn">重开</button>
+            <button id="btnBack" class="btn">主页</button>
+        </div>
+    </header>
+    <main id="homeView" class="home">
+        <section class="intro">
+            <h2>分色调度</h2>
+            <p class="muted">专注调度 · 无提示 · 无断路。点击路口白圈切换连通，将箱子送入匹配颜色仓库。错误≤3则通关，否则失败。</p>
+            <div class="row">
+                <button id="btnStartUnlocked" class="btn">开始</button>
+            </div>
+        </section>
+        <section class="card">
+            <div class="row">
+                <div>当前进度：<span id="progressSummary">—</span></div>
+                <button id="btnResetProgress" class="btn">清除进度</button>
+            </div>
+        </section>
+        <section>
+            <h3>关卡列表</h3>
+            <div id="levelList" class="grid"></div>
+        </section>
+    </main>
+    <main id="playView" class="stage hidden">
+        <canvas id="gameCanvas"></canvas>
+        <div id="resultOverlay" class="overlay hidden">
+            <div class="overlay-card">
+                <div id="overlayTitle" class="overlay-title"></div>
+                <div id="overlayDesc" class="muted"></div>
+                <div class="overlay-row">
+                    <button id="btnOverlayRestart" class="btn">重开</button>
+                    <button id="btnOverlayHome" class="btn">主页</button>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script src="levels.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
