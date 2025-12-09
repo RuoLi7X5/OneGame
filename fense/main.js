@@ -5,7 +5,8 @@ let spawnFinished = false;
 let gameOver = false;
 let t = 0;
 let particles = [];
-const BASE = { W: 980, H: 700 };
+let viewScale = 1, viewPad = 24, viewMinX = 0, viewMinY = 0;
+let lastTouchTime = 0;
 
 function initGame(lv) {
   level = JSON.parse(JSON.stringify(lv));
@@ -23,6 +24,7 @@ function initGame(lv) {
   gameOver = false;
   showPlay();
   updateHud();
+  computeTransform();
   startSpawning();
 }
 
@@ -83,7 +85,7 @@ function setupCanvas() {
   resize();
   window.addEventListener("resize", resize);
   canvas.addEventListener("click", onClick);
-  canvas.addEventListener("touchstart", onClick, { passive: true });
+  canvas.addEventListener("touchstart", onClick, { passive: false });
   requestAnimationFrame(loop);
 }
 
@@ -91,6 +93,7 @@ function resize() {
   const rect = canvas.getBoundingClientRect();
   W = Math.floor(rect.width); H = Math.floor(rect.height);
   canvas.width = W; canvas.height = H;
+  computeTransform();
 }
 
 function loop(ts) {
@@ -268,12 +271,30 @@ function drawGear(cx, cy, r, teeth) {
 
 function getVar(name) { return getComputedStyle(document.body).getPropertyValue(name).trim() || '#3c7c66'; }
 
-function scalePos(p) { return [ p[0] * (W/BASE.W), p[1] * (H/BASE.H) ]; }
-function scaleR(r) { return r * Math.min(W/BASE.W, H/BASE.H); }
+function computeTransform() {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (let id in nodes) {
+    const pos = nodes[id].pos; if (!pos) continue;
+    minX = Math.min(minX, pos[0]); minY = Math.min(minY, pos[1]);
+    maxX = Math.max(maxX, pos[0]); maxY = Math.max(maxY, pos[1]);
+  }
+  if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 1; maxY = 1; }
+  const pad = Math.min(W, H) * 0.05; // 5% 内边距
+  const scaleX = (W - 2*pad) / Math.max(1, (maxX - minX));
+  const scaleY = (H - 2*pad) / Math.max(1, (maxY - minY));
+  viewScale = Math.min(scaleX, scaleY);
+  viewPad = pad;
+  viewMinX = minX;
+  viewMinY = minY;
+}
+function scalePos(p) { return [ (p[0] - viewMinX) * viewScale + viewPad, (p[1] - viewMinY) * viewScale + viewPad ]; }
+function scaleR(r) { return r * viewScale; }
 
 function line(x1,y1,x2,y2) { ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }
 
 function onClick(ev) {
+  if (ev.type === 'touchstart') { lastTouchTime = Date.now(); ev.preventDefault(); }
+  if (ev.type === 'click' && Date.now() - lastTouchTime < 500) { return; }
   const r = canvas.getBoundingClientRect(); const mx = (ev.clientX ?? ev.touches[0].clientX) - r.left; const my = (ev.clientY ?? ev.touches[0].clientY) - r.top;
   for (let id in switches) {
     const p = scalePos(nodes[id].pos); const radius = scaleR(28);
