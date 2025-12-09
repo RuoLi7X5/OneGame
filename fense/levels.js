@@ -1,11 +1,40 @@
-const LEVELS = [
+const COLOR_PALETTE = {
+  blue: "#3b82f6", green: "#16a34a", brown: "#a16207", cyan: "#22d3ee",
+  red: "#ef4444", lightgreen: "#22c55e", pink: "#e879f9", purple: "#8b5cf6",
+  orange: "#f59e0b"
+};
+
+function complexityScore(spec){
+  const switchCount = (spec.switches||[]).length;
+  const degreeSum = (spec.switches||[]).reduce((s,x)=>s+(x.options?.length||2)-1,0);
+  const colorCount = (spec.colors||[]).length;
+  return colorCount*0.6 + switchCount*0.9 + degreeSum*0.4;
+}
+function computeDifficulty(prev, spec){
+  const baseSpeed = 70;
+  const score = complexityScore(spec);
+  const prevCount = prev?.spawn?.count ?? 18;
+  const nextCount = Math.max(18, Math.min(40, Math.round(prevCount + 2 + score*0.6)));
+  const baseInterval = prev?.spawn?.intervalMs ?? 1600;
+  const nextInterval = Math.max(1200, Math.min(1700, Math.round(baseInterval - Math.min(250, score*12))));
+  const targetCorrect = Math.max(12, Math.round(nextCount*0.78));
+  return {
+    spawn: { count: nextCount, intervalMs: nextInterval, distribution: autoDistribution(spec.colors), speed: baseSpeed },
+    rules: { maxErrors: 3, targetCorrect }
+  };
+}
+function autoDistribution(colors){
+  const n = colors.length; const even = 1/n; const d = {}; colors.forEach(c=>d[c]=even); return d;
+}
+
+function mapColorSet(colors){ const m={}; colors.forEach(c=>m[c]=COLOR_PALETTE[c]); return m; }
+
+const LEVEL_SPECS = [
   {
     id: "lv1",
     name: "Lv.1",
     colors: ["blue", "green", "brown"],
-    colorMap: { blue: "#3b82f6", green: "#16a34a", brown: "#a16207" },
-    spawn: { count: 18, intervalMs: 1600, distribution: { blue: 0.4, green: 0.4, brown: 0.2 }, speed: 70 },
-    rules: { maxErrors: 3, targetCorrect: 14 },
+    colorMap: mapColorSet(["blue","green","brown"]),
     nodes: [
       { id: "entrance", type: "entrance", pos: [460, 60] },
       { id: "sw1", type: "switch", pos: [460, 220], degree: 2 },
@@ -30,9 +59,7 @@ const LEVELS = [
     id: "lv2",
     name: "Lv.2",
     colors: ["cyan", "red", "lightgreen", "pink", "brown"],
-    colorMap: { cyan: "#22d3ee", red: "#ef4444", lightgreen: "#22c55e", pink: "#e879f9", brown: "#a16207" },
-    spawn: { count: 24, intervalMs: 1550, distribution: { cyan: 0.2, red: 0.2, lightgreen: 0.25, pink: 0.2, brown: 0.15 }, speed: 70 },
-    rules: { maxErrors: 3, targetCorrect: 19 },
+    colorMap: mapColorSet(["cyan","red","lightgreen","pink","brown"]),
     nodes: [
       { id: "entrance", type: "entrance", pos: [480, 60] },
       { id: "swA", type: "switch", pos: [480, 220], degree: 3 },
@@ -61,9 +88,7 @@ const LEVELS = [
     id: "lv3",
     name: "Lv.3",
     colors: ["blue", "green", "red", "brown"],
-    colorMap: { blue: "#3b82f6", green: "#16a34a", red: "#ef4444", brown: "#a16207" },
-    spawn: { count: 26, intervalMs: 1550, distribution: { blue: 0.3, green: 0.3, red: 0.25, brown: 0.15 }, speed: 70 },
-    rules: { maxErrors: 3, targetCorrect: 21 },
+    colorMap: mapColorSet(["blue","green","red","brown"]),
     nodes: [
       { id: "entrance", type: "entrance", pos: [460, 60] },
       { id: "swA", type: "switch", pos: [460, 220], degree: 3 },
@@ -90,9 +115,7 @@ const LEVELS = [
     id: "lv4",
     name: "Lv.4",
     colors: ["cyan", "blue", "green", "pink", "brown"],
-    colorMap: { cyan: "#22d3ee", blue: "#3b82f6", green: "#16a34a", pink: "#e879f9", brown: "#a16207" },
-    spawn: { count: 28, intervalMs: 1500, distribution: { cyan: 0.2, blue: 0.2, green: 0.2, pink: 0.25, brown: 0.15 }, speed: 70 },
-    rules: { maxErrors: 3, targetCorrect: 23 },
+    colorMap: mapColorSet(["cyan","blue","green","pink","brown"]),
     nodes: [
       { id: "entrance", type: "entrance", pos: [480, 60] },
       { id: "swA", type: "switch", pos: [480, 200], degree: 3 },
@@ -124,9 +147,7 @@ const LEVELS = [
     id: "lv5",
     name: "Lv.5",
     colors: ["blue", "green", "red", "pink", "brown"],
-    colorMap: { blue: "#3b82f6", green: "#16a34a", red: "#ef4444", pink: "#e879f9", brown: "#a16207" },
-    spawn: { count: 30, intervalMs: 1500, distribution: { blue: 0.2, green: 0.2, red: 0.25, pink: 0.2, brown: 0.15 }, speed: 70 },
-    rules: { maxErrors: 3, targetCorrect: 25 },
+    colorMap: mapColorSet(["blue","green","red","pink","brown"]),
     nodes: [
       { id: "entrance", type: "entrance", pos: [480, 60] },
       { id: "swA", type: "switch", pos: [480, 210], degree: 3 },
@@ -155,9 +176,7 @@ const LEVELS = [
     id: "lv6",
     name: "Lv.6",
     colors: ["cyan", "orange", "green", "purple", "brown"],
-    colorMap: { cyan: "#22d3ee", orange: "#f59e0b", green: "#16a34a", purple: "#8b5cf6", brown: "#a16207" },
-    spawn: { count: 32, intervalMs: 1450, distribution: { cyan: 0.2, orange: 0.2, green: 0.2, purple: 0.25, brown: 0.15 }, speed: 70 },
-    rules: { maxErrors: 3, targetCorrect: 27 },
+    colorMap: mapColorSet(["cyan","orange","green","purple","brown"]),
     nodes: [
       { id: "entrance", type: "entrance", pos: [480, 60] },
       { id: "swA", type: "switch", pos: [460, 210], degree: 3 },
@@ -186,9 +205,7 @@ const LEVELS = [
     id: "lv7",
     name: "Lv.7",
     colors: ["blue", "green", "red", "purple", "brown"],
-    colorMap: { blue: "#3b82f6", green: "#16a34a", red: "#ef4444", purple: "#8b5cf6", brown: "#a16207" },
-    spawn: { count: 34, intervalMs: 1450, distribution: { blue: 0.2, green: 0.2, red: 0.25, purple: 0.2, brown: 0.15 }, speed: 70 },
-    rules: { maxErrors: 3, targetCorrect: 29 },
+    colorMap: mapColorSet(["blue","green","red","purple","brown"]),
     nodes: [
       { id: "entrance", type: "entrance", pos: [480, 60] },
       { id: "swA", type: "switch", pos: [480, 210], degree: 3 },
@@ -217,9 +234,7 @@ const LEVELS = [
     id: "lv8",
     name: "Lv.8",
     colors: ["cyan", "red", "lightgreen", "pink", "purple", "brown"],
-    colorMap: { cyan: "#22d3ee", red: "#ef4444", lightgreen: "#22c55e", pink: "#e879f9", purple: "#8b5cf6", brown: "#a16207" },
-    spawn: { count: 36, intervalMs: 1400, distribution: { cyan: 0.18, red: 0.18, lightgreen: 0.2, pink: 0.2, purple: 0.14, brown: 0.1 }, speed: 70 },
-    rules: { maxErrors: 3, targetCorrect: 31 },
+    colorMap: mapColorSet(["cyan","red","lightgreen","pink","purple","brown"]),
     nodes: [
       { id: "entrance", type: "entrance", pos: [480, 60] },
       { id: "swA", type: "switch", pos: [480, 200], degree: 3 },
@@ -253,9 +268,7 @@ const LEVELS = [
     id: "lv9",
     name: "Lv.9",
     colors: ["blue", "green", "red", "orange", "purple", "brown"],
-    colorMap: { blue: "#3b82f6", green: "#16a34a", red: "#ef4444", orange: "#f59e0b", purple: "#8b5cf6", brown: "#a16207" },
-    spawn: { count: 38, intervalMs: 1350, distribution: { blue: 0.16, green: 0.16, red: 0.18, orange: 0.16, purple: 0.18, brown: 0.16 }, speed: 70 },
-    rules: { maxErrors: 3, targetCorrect: 33 },
+    colorMap: mapColorSet(["blue","green","red","orange","purple","brown"]),
     nodes: [
       { id: "entrance", type: "entrance", pos: [480, 60] },
       { id: "swA", type: "switch", pos: [460, 200], degree: 3 },
@@ -286,9 +299,7 @@ const LEVELS = [
     id: "lv10",
     name: "Lv.10",
     colors: ["cyan", "blue", "green", "red", "pink", "purple", "brown"],
-    colorMap: { cyan: "#22d3ee", blue: "#3b82f6", green: "#16a34a", red: "#ef4444", pink: "#e879f9", purple: "#8b5cf6", brown: "#a16207" },
-    spawn: { count: 40, intervalMs: 1350, distribution: { cyan: 0.14, blue: 0.14, green: 0.15, red: 0.15, pink: 0.14, purple: 0.14, brown: 0.14 }, speed: 70 },
-    rules: { maxErrors: 3, targetCorrect: 35 },
+    colorMap: mapColorSet(["cyan","blue","green","red","pink","purple","brown"]),
     nodes: [
       { id: "entrance", type: "entrance", pos: [480, 60] },
       { id: "swA", type: "switch", pos: [480, 200], degree: 3 },
@@ -321,3 +332,15 @@ const LEVELS = [
     ]
   }
 ];
+
+const LEVELS = (() => {
+  const out = [];
+  let prev = null;
+  for (let i=0;i<LEVEL_SPECS.length;i++) {
+    const spec = LEVEL_SPECS[i];
+    const diff = computeDifficulty(prev, spec);
+    out.push({ ...spec, ...diff });
+    prev = out[i];
+  }
+  return out;
+})();

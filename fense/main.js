@@ -5,6 +5,8 @@ let spawnFinished = false;
 let gameOver = false;
 let t = 0;
 let particles = [];
+let particlePool = [];
+const isMobile = (() => /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent))();
 let viewScale = 1, viewPad = 24, viewMinX = 0, viewMinY = 0;
 let lastTouchTime = 0;
 
@@ -139,8 +141,8 @@ function update(dt) {
     p.t += dt;
     p.x += p.vx*dt;
     p.y += p.vy*dt;
-    p.vy += 30*dt;
-    if (p.t >= p.life) particles.splice(i,1);
+    p.vy += (p.type === 'spark' ? 60 : 30)*dt;
+    if (p.t >= p.life) { particlePool.push(particles[i]); particles.splice(i,1); }
   }
   for (let id in nodes) { const n = nodes[id]; if (n.type === "warehouse" && n.pulse > 0) n.pulse = Math.max(0, n.pulse - dt*0.8); }
   if (spawnFinished && boxes.length === 0) onLevelEnd();
@@ -230,25 +232,45 @@ function drawBoxes() {
 function drawParticles() {
   if (particles.length === 0) return;
   ctx.save();
-  ctx.globalCompositeOperation = "lighter";
+  ctx.globalCompositeOperation = "screen";
   for (let p of particles) {
     const a = Math.max(0, 1 - p.t/p.life);
-    ctx.globalAlpha = a;
-    ctx.fillStyle = p.color;
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = a * p.alphaMul;
+    if (p.type === 'spark') {
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = Math.max(1, p.r*0.4);
+      ctx.beginPath(); ctx.moveTo(p.x - p.vx*0.02, p.y - p.vy*0.02); ctx.lineTo(p.x, p.y); ctx.stroke();
+    } else {
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+      g.addColorStop(0, p.color);
+      g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+    }
   }
   ctx.restore();
 }
 
 function spawnBurst(x,y,color) {
-  const count = 18;
-  for (let i=0;i<count;i++) {
+  const base = isMobile ? 12 : 20;
+  const glowCount = Math.floor(base*0.6), sparkCount = base - glowCount;
+  for (let i=0;i<glowCount;i++) {
     const ang = Math.random()*Math.PI*2;
-    const sp = 120 + Math.random()*80;
-    const vx = Math.cos(ang)*sp;
-    const vy = Math.sin(ang)*sp;
-    particles.push({ x, y, vx, vy, r: 3+Math.random()*2, color, t: 0, life: 0.6+Math.random()*0.4 });
+    const sp = 90 + Math.random()*60;
+    addParticle({ x, y, vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp, r: scaleR(6+Math.random()*3), color, life: 0.8+Math.random()*0.5, type:'glow', alphaMul: 0.85 });
   }
+  for (let i=0;i<sparkCount;i++) {
+    const ang = Math.random()*Math.PI*2;
+    const sp = 140 + Math.random()*80;
+    addParticle({ x, y, vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp, r: scaleR(2+Math.random()*1.5), color, life: 0.5+Math.random()*0.3, type:'spark', alphaMul: 1.0 });
+  }
+}
+
+function addParticle(p) {
+  if (particles.length > (isMobile ? 160 : 240)) return;
+  const obj = particlePool.pop() || {};
+  obj.x = p.x; obj.y = p.y; obj.vx = p.vx; obj.vy = p.vy; obj.r = p.r; obj.color = p.color; obj.t = 0; obj.life = p.life; obj.type = p.type; obj.alphaMul = p.alphaMul || 1.0;
+  particles.push(obj);
 }
 
 function drawGear(cx, cy, r, teeth) {
