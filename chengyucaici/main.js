@@ -545,7 +545,7 @@ function setupUI(state, idioms) {
       const includeReqs = parseIncludeTokens(includeStr);
       const excludeReqs = parseIncludeTokens(excludeStr);
 
-      const allEmpty = criteria.every(c => !c.initial && !c.final && !c.tone) && !includeStr && !excludeStr;
+      const allEmpty = criteria.every(c => !c.initial && !c.final && !c.tone && !c.notInitial && !c.notFinal && !c.notTone) && !includeStr && !excludeStr;
       if (allEmpty) { queryResult.innerHTML = ''; return; }
 
       let candidate = new Set(Array.from({ length: idioms.length }, (_, i) => i));
