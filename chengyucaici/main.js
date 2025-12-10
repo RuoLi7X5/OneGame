@@ -1,6 +1,6 @@
 const INITIALS = ['zh','ch','sh','b','p','m','f','d','t','n','l','g','k','h','j','q','x','r','z','c','s','y','w'];
 
-const FINALS = ['a','o','e','ai','ei','ao','ou','an','en','ang','eng','er','ia','ie','iao','iu','ian','in','iang','ing','iong','ua','uo','uai','ui','uan','un','uang','ong','u','ue','ü','üe','üan','ün'];
+const FINALS = ['a','o','e','i','ai','ei','ao','ou','an','en','ang','eng','er','ia','ie','iao','iu','ian','in','iang','ing','iong','ua','uo','uai','ui','uan','un','uang','ong','u','ue','ü','üe','üan','ün'];
 const ALL_INITIALS = ['', ...INITIALS];
 
 function normalizeCore(core) {
