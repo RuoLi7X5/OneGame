@@ -84,6 +84,7 @@ function edgeLen(edge) {
 function setupCanvas() {
   canvas = document.getElementById("gameCanvas");
   ctx = canvas.getContext("2d");
+  setViewportVh();
   resize();
   window.addEventListener("resize", resize);
   canvas.addEventListener("click", onClick);
@@ -92,6 +93,7 @@ function setupCanvas() {
 }
 
 function resize() {
+  setViewportVh();
   const rect = canvas.getBoundingClientRect();
   W = Math.floor(rect.width); H = Math.floor(rect.height);
   canvas.width = W; canvas.height = H;
@@ -292,6 +294,7 @@ function drawGear(cx, cy, r, teeth) {
 }
 
 function getVar(name) { return getComputedStyle(document.body).getPropertyValue(name).trim() || '#3c7c66'; }
+function setViewportVh() { const vh = window.innerHeight * 0.01; document.documentElement.style.setProperty('--vh', `${vh}px`); }
 
 function computeTransform() {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;

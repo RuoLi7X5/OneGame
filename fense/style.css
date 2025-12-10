@@ -9,7 +9,7 @@ html, body { min-height: 100vh; margin: 0; font-family: ui-sans-serif, system-ui
 .hud { display: flex; gap: 12px; align-items: center; }
 .metric { background: var(--metric-bg); padding: 8px 12px; border-radius: 14px; font-size: 14px; box-shadow: 0 0 0 1px var(--metric-border) inset; }
 .stage { display: grid; place-items: center; padding: 12px; }
-#gameCanvas { width: 100%; height: calc(100vh - 72px); max-width: 980px; max-height: 700px; background: radial-gradient(600px 400px at 50% 30%, var(--canvas-radial), transparent), var(--canvas-bg); border-radius: 16px; box-shadow: 0 12px 28px rgba(0,0,0,0.35) inset, 0 8px 20px rgba(0,0,0,0.25); }
+#gameCanvas { width: 100%; height: calc(var(--vh, 1vh) * 100 - 72px); background: radial-gradient(600px 400px at 50% 30%, var(--canvas-radial), transparent), var(--canvas-bg); border-radius: 16px; box-shadow: 0 12px 28px rgba(0,0,0,0.35) inset, 0 8px 20px rgba(0,0,0,0.25); }
 .btn { background: var(--btn-bg); color: #e6f0ea; border: none; padding: 8px 14px; border-radius: 10px; cursor: pointer; transition: transform .12s ease; }
 .btn:hover { background: var(--btn-bg-hover); transform: translateY(-1px); }
 .btn[disabled] { background: var(--btn-disabled); opacity: 0.6; cursor: not-allowed; }
