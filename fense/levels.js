@@ -4,30 +4,80 @@ const COLOR_PALETTE = {
   orange: "#f59e0b"
 };
 
-function complexityScore(spec){
-  const switchCount = (spec.switches||[]).length;
-  const degreeSum = (spec.switches||[]).reduce((s,x)=>s+(x.options?.length||2)-1,0);
-  const colorCount = (spec.colors||[]).length;
-  return colorCount*0.6 + switchCount*0.9 + degreeSum*0.4;
-}
-function computeDifficulty(prev, spec){
+function computeDifficultyByLevel(level, colors){
   const baseSpeed = 70;
-  const score = complexityScore(spec);
-  const prevCount = prev?.spawn?.count ?? 18;
-  const nextCount = Math.max(18, Math.min(40, Math.round(prevCount + 2 + score*0.6)));
-  const baseInterval = prev?.spawn?.intervalMs ?? 1600;
-  const nextInterval = Math.max(1200, Math.min(1700, Math.round(baseInterval - Math.min(250, score*12))));
-  const targetCorrect = Math.max(12, Math.round(nextCount*0.78));
-  return {
-    spawn: { count: nextCount, intervalMs: nextInterval, distribution: autoDistribution(spec.colors), speed: baseSpeed },
-    rules: { maxErrors: 3, targetCorrect }
-  };
+  const intervalMs = Math.max(1500, 4000 - 100*(level-1));
+  let count;
+  if (level <= 10) count = 18 + (level-1)*2; 
+  else if (level <= 20) count = 36 + (level-10); 
+  else count = 46; 
+  const targetCorrect = Math.max(12, Math.round(count*0.80));
+  return { spawn: { count, intervalMs, distribution: autoDistribution(colors), speed: baseSpeed }, rules: { maxErrors: 3, targetCorrect } };
 }
 function autoDistribution(colors){
   const n = colors.length; const even = 1/n; const d = {}; colors.forEach(c=>d[c]=even); return d;
 }
 
 function mapColorSet(colors){ const m={}; colors.forEach(c=>m[c]=COLOR_PALETTE[c]); return m; }
+
+function colorsForLevel(level){
+  if (level <= 3) return ["blue","green","brown"];
+  if (level <= 7) return ["blue","green","brown","red"];
+  if (level <= 12) return ["blue","green","brown","red","cyan"];
+  if (level <= 16) return ["blue","green","brown","red","cyan","pink"];
+  return ["blue","green","brown","red","cyan","pink","purple"];
+}
+
+function junctionPlan(level){
+  const cross3 = level < 5 ? 0 : level < 10 ? 1 : level < 15 ? 2 : 3; // capped at 3
+  const tCount = Math.min(6, 2 + Math.floor(Math.max(0, level-1)/4)); // 2 -> 6 slowly
+  const total = Math.max(3, Math.min(10, cross3 + tCount));
+  return { cross3, tCount, total };
+}
+
+function buildSpec(level){
+  const colors = colorsForLevel(level);
+  const colorMap = mapColorSet(colors);
+  const jp = junctionPlan(level);
+  const cx = 480, spacingY = 120, leftX = 240, rightX = 720;
+  const nodes = [ { id:"entrance", type:"entrance", pos:[cx, 60] } ];
+  const edges = [];
+  const switches = [];
+  const swIds = [];
+  for (let i=0;i<jp.total;i++) {
+    const id = `sw${i+1}`; swIds.push(id);
+    nodes.push({ id, type:"switch", pos:[cx, 200 + i*spacingY], degree: 3 });
+    edges.push({ from: i===0 ? "entrance" : swIds[i-1], to: id });
+  }
+  // place warehouses for each color alternating left/right near junctions
+  const warehouses = [];
+  const tSlots = Math.max(0, jp.tCount);
+  const xSlots = Math.max(0, jp.cross3);
+  const pattern = [];
+  for (let i=0;i<jp.total;i++) pattern.push(i < tSlots ? 1 : (i < tSlots + xSlots ? 2 : 1));
+  let colorIdx = 0;
+  for (let i=0;i<swIds.length && colorIdx < colors.length;i++) {
+    const want = pattern[i];
+    for (let k=0;k<want && colorIdx < colors.length; k++, colorIdx++) {
+      const sideRight = ((colorIdx + i) % 2) === 1;
+      const wx = sideRight ? rightX : leftX; const wy = nodes.find(n=>n.id===swIds[i]).pos[1];
+      const wId = `wh_${colors[colorIdx]}`;
+      warehouses.push({ id:wId, type:"warehouse", pos:[wx, wy], color: colors[colorIdx] });
+      edges.push({ from: swIds[i], to: wId });
+    }
+  }
+  // continue path along trunk, last goes to last color warehouse as fallback
+  for (let i=0;i<swIds.length;i++) {
+    const id = swIds[i];
+    const attachedWarehouses = edges.filter(e=>e.from===id && e.to.includes('wh_')).map(e=>e.to);
+    const fallback = attachedWarehouses[attachedWarehouses.length-1] || (i<swIds.length-1 ? swIds[i+1] : attachedWarehouses[0]);
+    const next = i<swIds.length-1 ? swIds[i+1] : fallback;
+    const opts = [ next, ...attachedWarehouses ].slice(0,3);
+    switches.push({ nodeId: id, options: opts, selectedIndex: 0 });
+  }
+  nodes.push(...warehouses);
+  return { id: `lv${level}`, name: `Lv.${level}`, colors, colorMap, nodes, edges, switches };
+}
 
 const LEVEL_SPECS = [
   {
@@ -335,12 +385,10 @@ const LEVEL_SPECS = [
 
 const LEVELS = (() => {
   const out = [];
-  let prev = null;
-  for (let i=0;i<LEVEL_SPECS.length;i++) {
-    const spec = LEVEL_SPECS[i];
-    const diff = computeDifficulty(prev, spec);
+  for (let lvl=1; lvl<=40; lvl++) {
+    const spec = buildSpec(lvl);
+    const diff = computeDifficultyByLevel(lvl, spec.colors);
     out.push({ ...spec, ...diff });
-    prev = out[i];
   }
   return out;
 })();

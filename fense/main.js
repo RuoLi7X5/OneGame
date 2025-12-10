@@ -7,7 +7,7 @@ let t = 0;
 let particles = [];
 let particlePool = [];
 const isMobile = (() => /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent))();
-let viewScale = 1, viewPad = 24, viewMinX = 0, viewMinY = 0;
+let viewScale = 1, viewPad = 24, viewMinX = 0, viewMinY = 0, viewOffsetX = 0, viewOffsetY = 0;
 let lastTouchTime = 0;
 
 function initGame(lv) {
@@ -304,15 +304,21 @@ function computeTransform() {
     maxX = Math.max(maxX, pos[0]); maxY = Math.max(maxY, pos[1]);
   }
   if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 1; maxY = 1; }
-  const pad = Math.min(W, H) * 0.05; // 5% 内边距
-  const scaleX = (W - 2*pad) / Math.max(1, (maxX - minX));
-  const scaleY = (H - 2*pad) / Math.max(1, (maxY - minY));
+  const pad = Math.min(W, H) * 0.04; // 4% 内边距
+  const width = Math.max(1, (maxX - minX));
+  const height = Math.max(1, (maxY - minY));
+  const scaleX = (W - 2*pad) / width;
+  const scaleY = (H - 2*pad) / height;
   viewScale = Math.min(scaleX, scaleY);
   viewPad = pad;
   viewMinX = minX;
   viewMinY = minY;
+  const usedW = width * viewScale;
+  const usedH = height * viewScale;
+  viewOffsetX = pad + (W - 2*pad - usedW) / 2;
+  viewOffsetY = pad + (H - 2*pad - usedH) / 2;
 }
-function scalePos(p) { return [ (p[0] - viewMinX) * viewScale + viewPad, (p[1] - viewMinY) * viewScale + viewPad ]; }
+function scalePos(p) { return [ (p[0] - viewMinX) * viewScale + viewOffsetX, (p[1] - viewMinY) * viewScale + viewOffsetY ]; }
 function scaleR(r) { return r * viewScale; }
 
 function line(x1,y1,x2,y2) { ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }
@@ -351,7 +357,7 @@ function renderHome() {
   LEVELS.forEach((lv, idx) => {
     const p = prog[lv.id]; const best = p ? (p.win ? "通关" : "失败") + ` 正确${p.correct||0} 错误${p.errors||0}` : "未游玩";
     const el = document.createElement("div"); el.className = "card";
-    const unlocked = idx === 0 ? true : !!(prog[LEVELS[idx-1].id] && prog[LEVELS[idx-1].id].win);
+    const unlocked = true;
     const lockText = unlocked ? "进入" : "未解锁";
     const disabled = unlocked ? "" : "disabled";
     el.innerHTML = `<h3>${lv.name}</h3><div class=muted>颜色数 ${lv.colors.length} · 箱子 ${lv.spawn.count}</div><div class=row><span>${best}</span><button class=btn data-id="${lv.id}" ${disabled}>${lockText}</button></div>`;
