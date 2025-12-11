@@ -35,48 +35,105 @@ function junctionPlan(level){
   return { cross3, tCount, total };
 }
 
+function pickVariantParams(level){
+  const oIdx = (level-1)%4;
+  const sIdx = Math.floor(((level-1)%8)/4);
+  const orientation = ["verticalTop","verticalBottom","horizontalLeft","horizontalRight"][oIdx];
+  const warehouseSideMode = ["alternate","singleA","singleB","alternate"][sIdx];
+  return { orientation, warehouseSideMode };
+}
+
 function buildSpec(level){
   const colors = colorsForLevel(level);
   const colorMap = mapColorSet(colors);
   const jp = junctionPlan(level);
-  const cx = 480, spacingY = 120, leftX = 240, rightX = 720;
-  const nodes = [ { id:"entrance", type:"entrance", pos:[cx, 60] } ];
+  const cx = 480, cy = 360, spacingY = 120, leftX = 240, rightX = 720, topY = 240, bottomY = 560;
+  const { orientation, warehouseSideMode } = pickVariantParams(level);
+  const nodes = [];
   const edges = [];
   const switches = [];
   const swIds = [];
-  for (let i=0;i<jp.total;i++) {
-    const id = `sw${i+1}`; swIds.push(id);
-    nodes.push({ id, type:"switch", pos:[cx, 200 + i*spacingY], degree: 3 });
-    edges.push({ from: i===0 ? "entrance" : swIds[i-1], to: id });
-  }
-  // place warehouses for each color alternating left/right near junctions
-  const warehouses = [];
-  const tSlots = Math.max(0, jp.tCount);
-  const xSlots = Math.max(0, jp.cross3);
-  const pattern = [];
-  for (let i=0;i<jp.total;i++) pattern.push(i < tSlots ? 1 : (i < tSlots + xSlots ? 2 : 1));
-  let colorIdx = 0;
-  for (let i=0;i<swIds.length && colorIdx < colors.length;i++) {
-    const want = pattern[i];
-    for (let k=0;k<want && colorIdx < colors.length; k++, colorIdx++) {
-      const sideRight = ((colorIdx + i) % 2) === 1;
-      const wx = sideRight ? rightX : leftX; const wy = nodes.find(n=>n.id===swIds[i]).pos[1];
-      const wId = `wh_${colors[colorIdx]}`;
-      warehouses.push({ id:wId, type:"warehouse", pos:[wx, wy], color: colors[colorIdx] });
-      edges.push({ from: swIds[i], to: wId });
+  if (orientation === "verticalTop" || orientation === "verticalBottom") {
+    nodes.push({ id:"entrance", type:"entrance", pos:[cx, 60] });
+    for (let i=0;i<jp.total;i++) {
+      const id = `sw${i+1}`; swIds.push(id);
+      nodes.push({ id, type:"switch", pos:[cx, 200 + i*spacingY], degree: 3 });
+      edges.push({ from: i===0 ? "entrance" : swIds[i-1], to: id });
     }
+    const warehouses = [];
+    const tSlots = Math.max(0, jp.tCount);
+    const xSlots = Math.max(0, jp.cross3);
+    const pattern = [];
+    for (let i=0;i<jp.total;i++) pattern.push(i < tSlots ? 1 : (i < tSlots + xSlots ? 2 : 1));
+    let colorIdx = 0;
+    for (let i=0;i<swIds.length && colorIdx < colors.length;i++) {
+      const want = pattern[i];
+      for (let k=0;k<want && colorIdx < colors.length; k++, colorIdx++) {
+        let useRight;
+        if (warehouseSideMode === "singleA") useRight = false;
+        else if (warehouseSideMode === "singleB") useRight = true;
+        else useRight = ((colorIdx + i) % 2) === 1;
+        const wx = useRight ? rightX : leftX; const wy = nodes.find(n=>n.id===swIds[i]).pos[1];
+        const wId = `wh_${colors[colorIdx]}`;
+        warehouses.push({ id:wId, type:"warehouse", pos:[wx, wy], color: colors[colorIdx] });
+        edges.push({ from: swIds[i], to: wId });
+      }
+    }
+    for (let i=0;i<swIds.length;i++) {
+      const id = swIds[i];
+      const attachedWarehouses = edges.filter(e=>e.from===id && e.to.includes('wh_')).map(e=>e.to);
+      const fallback = attachedWarehouses[attachedWarehouses.length-1] || (i<swIds.length-1 ? swIds[i+1] : attachedWarehouses[0]);
+      const next = i<swIds.length-1 ? swIds[i+1] : fallback;
+      const opts = [ next, ...attachedWarehouses ].slice(0,3);
+      switches.push({ nodeId: id, options: opts, selectedIndex: 0 });
+    }
+    nodes.push(...warehouses);
+    if (orientation === "verticalBottom") {
+      let minY = Infinity, maxY = -Infinity;
+      for (const n of nodes) { const y = n.pos[1]; if (y < minY) minY = y; if (y > maxY) maxY = y; }
+      const midY = (minY + maxY);
+      for (const n of nodes) { const y = n.pos[1]; n.pos[1] = midY - y; }
+    }
+  } else {
+    const spacingX = Math.max(60, Math.floor((rightX - leftX) / (jp.total + 1)));
+    const entranceX = orientation === "horizontalLeft" ? leftX - 80 : rightX + 80;
+    nodes.push({ id:"entrance", type:"entrance", pos:[entranceX, cy] });
+    for (let i=0;i<jp.total;i++) {
+      const id = `sw${i+1}`; swIds.push(id);
+      const x = orientation === "horizontalLeft" ? (leftX + (i+1)*spacingX) : (rightX - (i+1)*spacingX);
+      nodes.push({ id, type:"switch", pos:[x, cy], degree: 3 });
+      edges.push({ from: i===0 ? "entrance" : swIds[i-1], to: id });
+    }
+    const warehouses = [];
+    const tSlots = Math.max(0, jp.tCount);
+    const xSlots = Math.max(0, jp.cross3);
+    const pattern = [];
+    for (let i=0;i<jp.total;i++) pattern.push(i < tSlots ? 1 : (i < tSlots + xSlots ? 2 : 1));
+    let colorIdx = 0;
+    for (let i=0;i<swIds.length && colorIdx < colors.length;i++) {
+      const want = pattern[i];
+      for (let k=0;k<want && colorIdx < colors.length; k++, colorIdx++) {
+        let useTop;
+        if (warehouseSideMode === "singleA") useTop = true;
+        else if (warehouseSideMode === "singleB") useTop = false;
+        else useTop = ((colorIdx + i) % 2) === 1;
+        const wx = nodes.find(n=>n.id===swIds[i]).pos[0]; const wy = useTop ? topY : bottomY;
+        const wId = `wh_${colors[colorIdx]}`;
+        warehouses.push({ id:wId, type:"warehouse", pos:[wx, wy], color: colors[colorIdx] });
+        edges.push({ from: swIds[i], to: wId });
+      }
+    }
+    for (let i=0;i<swIds.length;i++) {
+      const id = swIds[i];
+      const attachedWarehouses = edges.filter(e=>e.from===id && e.to.includes('wh_')).map(e=>e.to);
+      const fallback = attachedWarehouses[attachedWarehouses.length-1] || (i<swIds.length-1 ? swIds[i+1] : attachedWarehouses[0]);
+      const next = i<swIds.length-1 ? swIds[i+1] : fallback;
+      const opts = [ next, ...attachedWarehouses ].slice(0,3);
+      switches.push({ nodeId: id, options: opts, selectedIndex: 0 });
+    }
+    nodes.push(...warehouses);
   }
-  // continue path along trunk, last goes to last color warehouse as fallback
-  for (let i=0;i<swIds.length;i++) {
-    const id = swIds[i];
-    const attachedWarehouses = edges.filter(e=>e.from===id && e.to.includes('wh_')).map(e=>e.to);
-    const fallback = attachedWarehouses[attachedWarehouses.length-1] || (i<swIds.length-1 ? swIds[i+1] : attachedWarehouses[0]);
-    const next = i<swIds.length-1 ? swIds[i+1] : fallback;
-    const opts = [ next, ...attachedWarehouses ].slice(0,3);
-    switches.push({ nodeId: id, options: opts, selectedIndex: 0 });
-  }
-  nodes.push(...warehouses);
-  return { id: `lv${level}`, name: `Lv.${level}`, colors, colorMap, nodes, edges, switches };
+  return { id: `lv${level}`, name: `Lv.${level}`, colors, colorMap, nodes, edges, switches, orientation, warehouseSideMode };
 }
 
 const LEVEL_SPECS = [
