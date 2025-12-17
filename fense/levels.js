@@ -5,14 +5,27 @@ const COLOR_PALETTE = {
 };
 
 function computeDifficultyByLevel(level, colors){
-  const baseSpeed = 70;
-  const intervalMs = Math.max(1500, 4000 - 100*(level-1));
+  // 基础速度随等级提升，上限 130
+  const baseSpeed = Math.min(130, 70 + (level-1)*1.5);
+  
+  // 生成间隔：每关减少，但有波浪式起伏，最低 800ms
+  // 每 5 关一个压力点 (5, 10, 15...)
+  let intervalBase = Math.max(800, 2500 - (level-1)*60);
+  if (level % 5 === 0) intervalBase *= 0.8; // 压力关加快 20%
+  const intervalMs = Math.round(intervalBase);
+
+  // 箱子总数：随等级增长，后期稳定
   let count;
   if (level <= 10) count = 18 + (level-1)*2; 
-  else if (level <= 20) count = 36 + (level-10); 
-  else count = 46; 
+  else if (level <= 20) count = 36 + (level-10)*1.5; 
+  else count = 50 + (level-20); 
+  count = Math.floor(count);
+
+  // 错误容忍度：后期适当放宽
+  const maxErrors = level > 30 ? 5 : level > 15 ? 4 : 3;
+
   const targetCorrect = Math.max(12, Math.round(count*0.80));
-  return { spawn: { count, intervalMs, distribution: autoDistribution(colors), speed: baseSpeed }, rules: { maxErrors: 3, targetCorrect } };
+  return { spawn: { count, intervalMs, distribution: autoDistribution(colors), speed: baseSpeed }, rules: { maxErrors, targetCorrect } };
 }
 function autoDistribution(colors){
   const n = colors.length; const even = 1/n; const d = {}; colors.forEach(c=>d[c]=even); return d;
@@ -37,34 +50,56 @@ function junctionPlan(level){
 
 function pickVariantParams(level){
   const oIdx = (level-1)%4;
-  const sIdx = Math.floor(((level-1)%8)/4);
+  const sIdx = Math.floor((level-1)/4) % 3;
   const orientation = ["verticalTop","verticalBottom","horizontalLeft","horizontalRight"][oIdx];
-  const warehouseSideMode = ["alternate","singleA","singleB","alternate"][sIdx];
+  const warehouseSideMode = ["alternate","singleA","singleB"][sIdx];
   return { orientation, warehouseSideMode };
+}
+
+// 简单的伪随机数生成器，基于种子保证关卡固定
+function seededRandom(seed) {
+  let x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
 }
 
 function buildSpec(level){
   const colors = colorsForLevel(level);
   const colorMap = mapColorSet(colors);
   const jp = junctionPlan(level);
-  const cx = 480, cy = 360, spacingY = 120, leftX = 240, rightX = 720, topY = 240, bottomY = 560;
+  const cx = 480, cy = 360;
+  // 基础间距与位置范围
+  const baseSpacing = 120; 
+  const minArm = 140, maxArm = 320; // 臂长范围，制造参差感
+  
   const { orientation, warehouseSideMode } = pickVariantParams(level);
   const nodes = [];
   const edges = [];
   const switches = [];
   const swIds = [];
+  
+  // 用于随机生成的种子基数
+  const seedBase = level * 1000;
+
   if (orientation === "verticalTop" || orientation === "verticalBottom") {
     nodes.push({ id:"entrance", type:"entrance", pos:[cx, 60] });
+    
+    // 生成主干上的 switch，间距带有微小随机扰动，打破绝对整齐
+    let currentY = 200;
     for (let i=0;i<jp.total;i++) {
       const id = `sw${i+1}`; swIds.push(id);
-      nodes.push({ id, type:"switch", pos:[cx, 200 + i*spacingY], degree: 3 });
+      // 间距在 100~140 之间波动
+      const step = 100 + seededRandom(seedBase + i) * 40;
+      nodes.push({ id, type:"switch", pos:[cx, currentY], degree: 3 });
       edges.push({ from: i===0 ? "entrance" : swIds[i-1], to: id });
+      currentY += step;
     }
+
     const warehouses = [];
     const tSlots = Math.max(0, jp.tCount);
     const xSlots = Math.max(0, jp.cross3);
     const pattern = [];
     for (let i=0;i<jp.total;i++) pattern.push(i < tSlots ? 1 : (i < tSlots + xSlots ? 2 : 1));
+    
     let colorIdx = 0;
     for (let i=0;i<swIds.length && colorIdx < colors.length;i++) {
       const want = pattern[i];
@@ -73,12 +108,19 @@ function buildSpec(level){
         if (warehouseSideMode === "singleA") useRight = false;
         else if (warehouseSideMode === "singleB") useRight = true;
         else useRight = ((colorIdx + i) % 2) === 1;
-        const wx = useRight ? rightX : leftX; const wy = nodes.find(n=>n.id===swIds[i]).pos[1];
+        
+        // 计算随机臂长，确保水平直线（Y坐标对齐Switch）
+        // 臂长在 minArm 到 maxArm 之间随机，制造长短不一的参差感
+        const armLen = minArm + seededRandom(seedBase + i*10 + k) * (maxArm - minArm);
+        const wx = useRight ? cx + armLen : cx - armLen;
+        const wy = nodes.find(n=>n.id===swIds[i]).pos[1];
+        
         const wId = `wh_${colors[colorIdx]}`;
         warehouses.push({ id:wId, type:"warehouse", pos:[wx, wy], color: colors[colorIdx] });
         edges.push({ from: swIds[i], to: wId });
       }
     }
+    
     for (let i=0;i<swIds.length;i++) {
       const id = swIds[i];
       const attachedWarehouses = edges.filter(e=>e.from===id && e.to.includes('wh_')).map(e=>e.to);
@@ -88,6 +130,7 @@ function buildSpec(level){
       switches.push({ nodeId: id, options: opts, selectedIndex: 0 });
     }
     nodes.push(...warehouses);
+    
     if (orientation === "verticalBottom") {
       let minY = Infinity, maxY = -Infinity;
       for (const n of nodes) { const y = n.pos[1]; if (y < minY) minY = y; if (y > maxY) maxY = y; }
@@ -95,20 +138,30 @@ function buildSpec(level){
       for (const n of nodes) { const y = n.pos[1]; n.pos[1] = midY - y; }
     }
   } else {
-    const spacingX = Math.max(60, Math.floor((rightX - leftX) / (jp.total + 1)));
-    const entranceX = orientation === "horizontalLeft" ? leftX - 80 : rightX + 80;
+    // 水平布局逻辑类似，只需交换 XY
+    const leftX = 100, rightX = 860; // 扩大一点范围
+    const spacingXBase = (rightX - leftX) / (jp.total + 1);
+    const entranceX = orientation === "horizontalLeft" ? leftX : rightX;
+    
     nodes.push({ id:"entrance", type:"entrance", pos:[entranceX, cy] });
+    
+    let currentX = orientation === "horizontalLeft" ? (leftX + 100) : (rightX - 100);
+    const dir = orientation === "horizontalLeft" ? 1 : -1;
+    
     for (let i=0;i<jp.total;i++) {
       const id = `sw${i+1}`; swIds.push(id);
-      const x = orientation === "horizontalLeft" ? (leftX + (i+1)*spacingX) : (rightX - (i+1)*spacingX);
-      nodes.push({ id, type:"switch", pos:[x, cy], degree: 3 });
+      const step = 80 + seededRandom(seedBase + i) * 60;
+      nodes.push({ id, type:"switch", pos:[currentX, cy], degree: 3 });
       edges.push({ from: i===0 ? "entrance" : swIds[i-1], to: id });
+      currentX += step * dir;
     }
+    
     const warehouses = [];
     const tSlots = Math.max(0, jp.tCount);
     const xSlots = Math.max(0, jp.cross3);
     const pattern = [];
     for (let i=0;i<jp.total;i++) pattern.push(i < tSlots ? 1 : (i < tSlots + xSlots ? 2 : 1));
+    
     let colorIdx = 0;
     for (let i=0;i<swIds.length && colorIdx < colors.length;i++) {
       const want = pattern[i];
@@ -117,12 +170,18 @@ function buildSpec(level){
         if (warehouseSideMode === "singleA") useTop = true;
         else if (warehouseSideMode === "singleB") useTop = false;
         else useTop = ((colorIdx + i) % 2) === 1;
-        const wx = nodes.find(n=>n.id===swIds[i]).pos[0]; const wy = useTop ? topY : bottomY;
+        
+        // 随机臂长（纵向）
+        const armLen = minArm + seededRandom(seedBase + i*10 + k) * (maxArm - minArm);
+        const wy = useTop ? cy - armLen : cy + armLen;
+        const wx = nodes.find(n=>n.id===swIds[i]).pos[0];
+        
         const wId = `wh_${colors[colorIdx]}`;
         warehouses.push({ id:wId, type:"warehouse", pos:[wx, wy], color: colors[colorIdx] });
         edges.push({ from: swIds[i], to: wId });
       }
     }
+    
     for (let i=0;i<swIds.length;i++) {
       const id = swIds[i];
       const attachedWarehouses = edges.filter(e=>e.from===id && e.to.includes('wh_')).map(e=>e.to);
